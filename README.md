@@ -89,11 +89,7 @@ class CalCommand extends Command
 
     function main()
     {
-        $argsline = '';
-        foreach ($this->args as $arg);
-            $argline .= ' ' . $arg;
-
-        $result = $this->system('cal' . $argline);
+        $result = $this->system('cal');
         if ($result['exit_code'] === 0)
             $this->write($result['output'], 'cyan');
         else
