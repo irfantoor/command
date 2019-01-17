@@ -12,6 +12,8 @@ $ php hello1.php -V
 $ php hello1.php -v
 ```
 
+Note: If version is not provided while intialising, file named 'version' is searched in the parent directory where the /src directory is present, if found then its contents are used as version, or a default value of '0.1' is used. This is helpful if the version file is part of versioning system and is updated to the last version tag (ref: examples/hello6.php)
+
 ref: examples/hello1.php
 ```php
 <?php

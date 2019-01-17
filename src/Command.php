@@ -103,7 +103,7 @@ class Command
      * @param string $version      optional: "0.1" by default
      * @param bool   $throw        throws exception or use builtin minimal exception handler
      */ 
-    function __construct($name, $description, $handler = null, $version = '0.1', $throw = false)
+    function __construct($name, $description, $handler = null, $version = null, $throw = false)
     {
         $this->console = new Console();
 
@@ -113,6 +113,17 @@ class Command
             $handler = [$this, 'main'];
         }
         $this->handler     = $handler;
+
+        if (!$version) {
+            $path    = $this->getCmdBasePath();
+            if ($path !== null)
+                $version = @trim(file($path  . 'version')[0], "\n");
+
+            if (!$version) {
+                $version = '0.1';
+            }
+        }
+
         $this->version     = $version;
 
         # todo -- calculate the hash of the file containing the this or derived Command class
@@ -174,6 +185,40 @@ class Command
     public function getDescription()
     {
         return $this->description;
+    }
+
+    /**
+     * Returns the version of this command
+     *
+     * @return string
+     */
+    public function getVersion()
+    {
+        return $this->version;
+    }
+
+    /**
+     * Returns the Base Path of this command
+     *
+     * @return string
+     */
+    function getCmdBasePath()
+    {
+        $path = null;
+
+        $parts = explode('\\', get_called_class());
+        $class   = array_pop($parts);
+        $files   = get_included_files();
+
+        foreach($files as $file) {
+            if (strpos($file, $class . '.php') !==false) {
+                $pos  = strrpos($file, '/src/');
+                $path = substr($file, 0, $pos + 1);
+                break;
+            }
+        }
+        
+        return $path;
     }
 
     /**
@@ -444,7 +489,7 @@ class Command
             $this->args = $args;
 
             $command  = count($this->commands) > 0;
-            $options  = !$commands;
+            $options  = !$command;
             $operands = false;
             $stop     = false;
 
