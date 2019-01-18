@@ -493,6 +493,13 @@ class Command
             $operands = false;
             $stop     = false;
 
+            # if a command is required and no argument is present run the main() rather
+            # main(): by defaults shows the help
+            if ((count($args) === 0) && $command) {
+                $this->main();
+                exit;
+            }
+
             for ($i = 0; $i < count($args); $i++) {
                 $arg = $args[$i];
                 
