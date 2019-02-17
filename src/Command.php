@@ -4,6 +4,7 @@ namespace IrfanTOOR;
 
 use Exception;
 use IrfanTOOR\Console;
+use IrfanTOOR\Command\Constants;
 use IrfanTOOR\Debug;
 
 class Command
@@ -103,31 +104,37 @@ class Command
      * @param string $version      optional: "0.1" by default
      * @param bool   $throw        throws exception or use builtin minimal exception handler
      */ 
-    function __construct($name, $description, $handler = null, $version = null, $throw = false)
+    public function __construct($name, $description, $handler = null, $version = null, $throw = false)
     {
         $this->console = new Console();
 
         $this->name        = $name;
         $this->description = $description;
+
         if ($handler === null) {
             $handler = [$this, 'main'];
         }
+
         $this->handler     = $handler;
 
         if (!$version) {
-            $path    = $this->getCmdBasePath();
-            if ($path !== null)
-                $version = @trim(file($path  . 'version')[0], "\n");
+            # Constants::VERSION of called class or this class
+            $ca = explode('\\', get_called_class());
+            $constants = '\\' . array_shift($ca) . '\\' . array_shift($ca) . '\\Constants';
+            $constants = str_replace('\\\\', '\\', $constants);
 
-            if (!$version) {
-                $version = '0.1';
+            if (class_exists($constants)) {
+                $version = $constants::VERSION;
+            } else {
+                $version = Constants::VERSION;
             }
         }
 
-        $this->version     = $version;
+        $this->version = $version;
 
-        # todo -- calculate the hash of the file containing the this or derived Command class
-        $class_hash = 
+        # todo -- calculate the hash of the file containing this or the derived Command class
+        # better yet find a way to include the git hash ;-)
+        $class_hash =
             # md5(fileOfClass(
                 get_called_class()
             # ))
@@ -162,10 +169,10 @@ class Command
     /**
      * Minimal exception handler
      */
-    function exceptionHandler($e)
+    public function exceptionHandler($e)
     {
         $this->console->writeln([$e->getMessage()], ['bg_red', 'white']);
-    } 
+    }
 
     /**
      * Returns the name of this command
@@ -202,7 +209,7 @@ class Command
      *
      * @return string
      */
-    function getCmdBasePath()
+    public function getCmdBasePath()
     {
         $path = null;
 
@@ -217,7 +224,7 @@ class Command
                 break;
             }
         }
-        
+
         return $path;
     }
 
@@ -226,7 +233,7 @@ class Command
      *
      * @param Command $command e.g. $this->addCommand(new HelloCommand());
      */
-    function addCommand(Command $command)
+    public function addCommand(Command $command)
     {
         $this->commands[$command->getName()] = $command;
     }
@@ -240,8 +247,8 @@ class Command
      * @param const  $argument    ARGUMENT_NOT_REQUIRED | ARGUMENT_REQUIRED | ARGUMENT_OPTIONAL
      * @param string $default     default value for this option in case of ARGUMENT_OPTIONAL
      */
-    function addOption(
-        $short, $long, $description, 
+    public function addOption(
+        $short, $long, $description,
         $argument = self::ARGUMENT_NOT_REQUIRED, $default = 0)
     {
         $k = strtolower($short . $long);
@@ -263,20 +270,20 @@ class Command
      * @param const  $argument    ARGUMENT_NOT_REQUIRED | ARGUMENT_REQUIRED | ARGUMENT_OPTIONAL
      * @param string $default     default value for this option in case of ARGUMENT_OPTIONAL
      */
-    function addOperand(
+    public function addOperand(
         $name, $description,
         $argument = self::ARGUMENT_REQUIRED, $default = '')
     {
         if (!
             (
-                $argument == self::ARGUMENT_REQUIRED || 
+                $argument == self::ARGUMENT_REQUIRED ||
                 $argument == self::ARGUMENT_OPTIONAL
             )
         )
         {
             throw new Exception("Invalid value for argument", 1);
         }
-            
+
         $this->operands[$name] = [
             'name'        => $name,
             'description' => $description,
@@ -292,7 +299,7 @@ class Command
      *
      * @return mixed int count of the option OR string value of the option if one was provided
      */
-    function getOption($name)
+    public function getOption($name)
     {
         $found = false;
         foreach ($this->options as $k => $v) {
@@ -316,7 +323,7 @@ class Command
      *
      * @return string the value of the option if one was provided
      */
-    function getOperand($name)
+    public function getOperand($name)
     {
         if (array_key_exists($name, $this->operands)) {
             return $this->operands[$name]['value'];
@@ -328,7 +335,7 @@ class Command
     /**
      * Prints the help of the command when an option -h or --help is gived on command line
      */
-    function help()
+    public function help()
     {
         $this->writeln($this->name . ' ' . $this->version, ['bold', 'white']);
         $this->writeln($this->description);
@@ -365,11 +372,11 @@ class Command
             foreach ($this->commands as $k => $v) {
                 $max = max($max, strlen($k));
             }
-            
+
             foreach ($this->commands as $k => $v) {
                 $this->write(' ' . $k . str_repeat(' ', $max + 4 - strlen($k)), 'green');
                 $this->writeln($v->getDescription(), 'yellow');
-            }       
+            }
         }
 
         # Options
@@ -389,7 +396,6 @@ class Command
             foreach ($this->options as $k => $v) {
                 extract($v);
 
-
                 $s1 = strlen($short) ?: 4;
                 $s2 = $max - strlen($long) - 3;
 
@@ -402,7 +408,7 @@ class Command
                     ($long ? ' --' . $long : '') .         # --long
                     $sep2,                                 # space before description
                     'green');                              # color
-                
+
                 $this->write($description, 'yellow');    # description and color
 
                 # print if the argument is required or optional and its default value if so
@@ -436,7 +442,7 @@ class Command
                 $s = $max - strlen($name);
                 $sep = str_repeat(' ', $s);
 
-                $this->write($name . $sep, 'green');
+                $this->write(' ' . $name . $sep, 'green');
                 $this->write($description, 'yellow');
 
                 # print if the argument is required or optional and its default value if so
@@ -445,7 +451,7 @@ class Command
                 } elseif ($argument == self::ARGUMENT_OPTIONAL) {
                     $this->write(' [optional, default: ' . print_r($value, 1) . ']', 'dark');
                 }
-                
+
                 $this->writeln('');
             }
         }
@@ -459,7 +465,7 @@ class Command
      * @return array output and exit_code are returned
      */
 
-    function system($command)
+    public function system($command)
     {
         $command .= ' 2>&1';
         ob_start();
@@ -477,126 +483,86 @@ class Command
      *                    arguments are parsed for options and operands.
      * @return mixed
      */
-    function run($args = null)
+    public function run($args = null)
     {
-        // try {
-            # process arguments
-            if ($args === null) {
-                $args = $_SERVER['argv'];
-                array_shift($args);
+        # process arguments
+        if ($args === null) {
+            $args = $_SERVER['argv'];
+            array_shift($args);
+        }
+
+        $this->args = $args;
+
+        $command  = count($this->commands) > 0;
+        $options  = !$command;
+        $operands = false;
+        $stop     = false;
+
+        # if a command is required and no argument is present run the main() rather
+        # main(): by defaults shows the help
+        if ((count($args) === 0) && $command) {
+            $this->main();
+            exit;
+        }
+
+        for ($i = 0; $i < count($args); $i++) {
+            $arg = $args[$i];
+
+            if ($arg === '--') {
+                $token = '--';
+            } elseif (strpos($arg, '--') === 0) {
+                $token = 'long';
+                $arg = substr($arg, 2);
+            } elseif (strpos($arg, '-') === 0) {
+                $token = 'short';
+                $arg = substr($arg, 1);
+            } elseif ($command) {
+                $token = 'command';
+            } elseif ($operands) {
+                $token = 'operand';
+            } else {
+                $token = 'arg';
             }
 
-            $this->args = $args;
+            switch ($token) {
+                case 'command':
+                    if (array_key_exists($arg, $this->commands)) {
+                        array_shift($args);
+                        $this->commands[$arg]->run($args);
+                        exit;
+                    } else {
+                        throw new Exception("Unknown command: " . $arg, 1);
+                    }
+                    $command = false;
+                    $i--;
+                    break;
 
-            $command  = count($this->commands) > 0;
-            $options  = !$command;
-            $operands = false;
-            $stop     = false;
+                case 'operand':
+                case 'arg':
+                    foreach ($this->operands as $k => $v) {
+                        $this->operands[$k]['value'] = $arg;
+                        $i++;
+                        if (!isset($args[$i]))
+                            break;
+                        else
+                            $arg = $args[$i];
+                    }
+                    $stop = true;
+                    break;
 
-            # if a command is required and no argument is present run the main() rather
-            # main(): by defaults shows the help
-            if ((count($args) === 0) && $command) {
-                $this->main();
-                exit;
-            }
+                case '--':
+                    $command  = false;
+                    $options  = false;
+                    $operands = true;
+                    break;
 
-            for ($i = 0; $i < count($args); $i++) {
-                $arg = $args[$i];
-                
-                if ($arg === '--') {
-                    $token = '--';
-                } elseif (strpos($arg, '--') === 0) {
-                    $token = 'long';
-                    $arg = substr($arg, 2);
-                } elseif (strpos($arg, '-') === 0) {
-                    $token = 'short';
-                    $arg = substr($arg, 1);
-                } elseif ($command) {
-                    $token = 'command';
-                } elseif ($operands) {
-                    $token = 'operand';
-                } else {
-                    $token = 'arg';
-                }
-
-                switch ($token) {
-                    case 'command':
-                        if (array_key_exists($arg, $this->commands)) {
-                            array_shift($args);
-                            $this->commands[$arg]->run($args);
-                            exit;
-                        } else {
-                            throw new Exception("Unknown command: " . $arg, 1);
-                        }
-                        $command = false;
-                        $i--;
-                        break;
-
-                    case 'operand':
-                    case 'arg':
-                        foreach ($this->operands as $k => $v) {
-                            $this->operands[$k]['value'] = $arg;
-                            $i++;
-                            if (!isset($args[$i]))
-                                break;
-                            else
-                                $arg = $args[$i];
-                        }
-                        $stop = true;
-                        break;
-
-                    case '--':
-                        $command  = false;
-                        $options  = false;
-                        $operands = true;
-                        break;
-
-                    case 'short':
-                        for ($l = 0; $l < strlen($arg); $l++) {
-                            $a = $arg[$l];
-                            $found = false;
-                            foreach ($this->options as $k => $v) {
-                                extract($v);
-                                if ($short === $a) {
-                                    $found = true;
-                                    break;
-                                }
-                            }
-
-                            if (!$found) {
-                                throw new Exception("Unknown option: " . $arg, 1);
-                            }
-
-                            if ($argument === self::ARGUMENT_REQUIRED) {
-                                $this->options[$k]['value'] = substr($arg, $l + 1);
-                                $l = strlen($arg);
-                            } elseif ($argument === self::ARGUMENT_OPTIONAL) {
-                                if ($arg[$l + 1] === '=') {
-                                        $this->options[$k]['value'] = substr($arg, $l + 2);
-                                        $l = strlen($arg);
-                                } else {
-                                    throw new Exception("Missing required option: " . $arg, 1);
-                                }
-                            } else {
-                                $this->options[$k]['value'] += 1;
-                            }
-                        }
-
-                        break;
-
-                    case 'long':
-                        preg_match('|(\w*)=(.*)|s', $arg, $m);
-                        $arg_value = null;
-
-                        if (isset($m[1])) {
-                            $arg = $m[1];
-                            $arg_value = $m[2];
-                        }
-
+                case 'short':
+                    for ($l = 0; $l < strlen($arg); $l++) {
+                        $a = $arg[$l];
                         $found = false;
                         foreach ($this->options as $k => $v) {
                             extract($v);
-                            if ($long === $arg) {
+                            if ($short === $a) {
                                 $found = true;
                                 break;
                             }
@@ -606,79 +572,118 @@ class Command
                             throw new Exception("Unknown option: " . $arg, 1);
                         }
 
-                        if ($argument === self::ARGUMENT_OPTIONAL) {
-                            if ($arg_value != null) {
-                                $this->options[$k]['value'] = $arg_value;
-                            } else {
-                                $this->options[$k]['value'] += 1;
-                            }
-                        } elseif ($argument === self::ARGUMENT_REQUIRED) {
-                            if (isset($args[$i + 1])) {
-                                $this->options[$k]['value'] = $args[$i + 1];
-                                $i++;
+                        if ($argument === self::ARGUMENT_REQUIRED) {
+                            $this->options[$k]['value'] = substr($arg, $l + 1);
+                            $l = strlen($arg);
+                        } elseif ($argument === self::ARGUMENT_OPTIONAL) {
+                            if ($arg[$l + 1] === '=') {
+                                    $this->options[$k]['value'] = substr($arg, $l + 2);
+                                    $l = strlen($arg);
                             } else {
                                 throw new Exception("Missing required option: " . $arg, 1);
                             }
                         } else {
                             $this->options[$k]['value'] += 1;
                         }
-                        
-                        break;
-                }
-            }
+                    }
 
-            # verbosity
-            $this->verbose = $this->getOption('verbose');
-            if ($this->verbose) {
-                Debug::enable($this->verbose);
-            }
+                    break;
 
-            # version
-            if ($this->getOption('version')) {  
-                // echo sprintf('%s: %s' . PHP_EOL, $this->name, $this->version);
-                $this->writeln($this->name . ' v' . $this->version, ['bold', 'white']);
-                $this->writeln('version hash: ' . $this->version_hash, 'yellow');
-                exit;
-            }
+                case 'long':
+                    preg_match('|(\w*)=(.*)|s', $arg, $m);
+                    $arg_value = null;
 
-            # help
-            if ($option = $this->getOption('help')) {  
-                $this->help($option);
-                exit;
-            }
+                    if (isset($m[1])) {
+                        $arg = $m[1];
+                        $arg_value = $m[2];
+                    }
 
-            if (count($this->commands))
-            {
-                throw new Exception("Missing command", 1);
-            }
+                    $found = false;
+                    foreach ($this->options as $k => $v) {
+                        extract($v);
+                        if ($long === $arg) {
+                            $found = true;
+                            break;
+                        }
+                    }
 
-            # check if all required options have been provided
-            foreach ($this->options as $k => $v) {
-                extract($v);
-                if ($argument == self::ARGUMENT_REQUIRED && $value === 0) {
-                    if ($long)
-                        throw new Exception("Missing option value: " . '--' . $long, 1);
-                    else
-                        throw new Exception("Missing option value: " . '-' . $short, 1);
-                }
-            }
+                    if (!$found) {
+                        throw new Exception("Unknown option: " . $arg, 1);
+                    }
 
-            # check if all required operands have been provided
-            foreach ($this->operands as $k => $v) {
-                extract($v);
-                if ($argument == self::ARGUMENT_REQUIRED && $value === '') {
-                    throw new Exception("Missing operand: " . $name, 1);
-                }
-            }
+                    if ($argument === self::ARGUMENT_OPTIONAL) {
+                        if ($arg_value != null) {
+                            $this->options[$k]['value'] = $arg_value;
+                        } else {
+                            $this->options[$k]['value'] += 1;
+                        }
+                    } elseif ($argument === self::ARGUMENT_REQUIRED) {
+                        if (isset($args[$i + 1])) {
+                            $this->options[$k]['value'] = $args[$i + 1];
+                            $i++;
+                        } else {
+                            throw new Exception("Missing required option: " . $arg, 1);
+                        }
+                    } else {
+                        $this->options[$k]['value'] += 1;
+                    }
 
-            return call_user_func($this->handler, $this);
+                    break;
+            }
+        }
+
+        # verbosity
+        $this->verbose = $this->getOption('verbose');
+        if ($this->verbose) {
+            Debug::enable($this->verbose);
+        }
+
+        # version
+        if ($this->getOption('version')) {
+            // echo sprintf('%s: %s' . PHP_EOL, $this->name, $this->version);
+            $this->writeln($this->name . ' v' . $this->version, ['bold', 'white']);
+            $this->writeln('version hash: ' . $this->version_hash, 'yellow');
+            exit;
+        }
+
+        # help
+        if ($option = $this->getOption('help')) {
+            $this->help($option);
+            exit;
+        }
+
+        if (count($this->commands))
+        {
+            throw new Exception("Missing command", 1);
+        }
+
+        # check if all required options have been provided
+        foreach ($this->options as $k => $v) {
+            extract($v);
+            if ($argument == self::ARGUMENT_REQUIRED && $value === 0) {
+                if ($long)
+                    throw new Exception("Missing option value: " . '--' . $long, 1);
+                else
+                    throw new Exception("Missing option value: " . '-' . $short, 1);
+            }
+        }
+
+        # check if all required operands have been provided
+        foreach ($this->operands as $k => $v) {
+            extract($v);
+            if ($argument == self::ARGUMENT_REQUIRED && $value === '') {
+                throw new Exception("Missing operand: " . $name, 1);
+            }
+        }
+
+        return call_user_func($this->handler, $this);
     }
 
     /**
      * If no handler is provided while constructing, this function is called.
      * This must be overridden in an extended class
      */
-    function main()
+    public function main()
     {
         $this->help();
     }
