@@ -17,5 +17,8 @@
         "psr-4": {
             "IrfanTOOR\\": "src"
         }
+    },
+    "require-dev": {
+        "irfantoor/test": "dev-master"
     }
 }
