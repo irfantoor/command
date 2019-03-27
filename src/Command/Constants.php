@@ -25,5 +25,5 @@ Constants.php
  */
 class Constants
 {
-    public const VERSION = '0.2.3';
+    public const VERSION = '0.2.4';
 }
