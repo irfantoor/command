@@ -10,7 +10,7 @@
         }
     ],
     "require": {
-        "irfantoor/debug": "^0.3",
+        "irfantoor/debug": "^0.4",
         "irfantoor/console": "^0.5"
     },
     "autoload": {

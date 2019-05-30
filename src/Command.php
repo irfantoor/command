@@ -4,11 +4,17 @@ namespace IrfanTOOR;
 
 use Exception;
 use IrfanTOOR\Console;
-use IrfanTOOR\Command\Constants;
 use IrfanTOOR\Debug;
 
 class Command
 {
+    /**
+     * Command Version
+     *
+     * @var const
+     */
+    const VERSION = "0.3"; # @@VERSION
+
     /**
      * Argument value is not required, its the default for an option
      *
@@ -55,30 +61,28 @@ class Command
      * description of this command
      *
      * @var string
-     */    
+     */
     protected $description;
 
     /**
      * version of this commmand, default is "0.1"
      *
      * @var string
-     */    
+     */
     protected $version  = "0.1";
-
 
     /**
      * version hash
      *
      * @var string
-     */    
+     */
     protected $version_hash  = "";
-
 
     /**
      * array of commands, if this is a composit command, added using addCommand function
      *
      * @var array
-     */    
+     */
     protected $commands = [];
 
     /**
@@ -92,7 +96,7 @@ class Command
      * operands associated with this command, added using addOperand function 
      *
      * @var array
-     */    
+     */
     protected $operands = [];
 
     /**
@@ -103,7 +107,7 @@ class Command
      * @param mixed  $handler      optional: null or a closure, in case of null function main will be used as handler
      * @param string $version      optional: "0.1" by default
      * @param bool   $throw        throws exception or use builtin minimal exception handler
-     */ 
+     */
     public function __construct($name, $description, $handler = null, $version = null, $throw = false)
     {
         $this->console = new Console();
@@ -120,13 +124,13 @@ class Command
         if (!$version) {
             # Constants::VERSION of called class or this class
             $ca = explode('\\', get_called_class());
-            $constants = '\\' . array_shift($ca) . '\\' . array_shift($ca) . '\\Constants';
+            $constants = '\\' . array_shift($ca) . '\\' . array_shift($ca);
             $constants = str_replace('\\\\', '\\', $constants);
 
             if (class_exists($constants)) {
                 $version = $constants::VERSION;
             } else {
-                $version = Constants::VERSION;
+                $version = self::VERSION;
             }
         }
 
