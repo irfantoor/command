@@ -4,74 +4,16 @@ namespace IrfanTOOR;
 
 use Exception;
 use IrfanTOOR\Console;
-use IrfanTOOR\Command\Constants;
 use IrfanTOOR\Debug;
 
 class Command
 {
     /**
-     * Argument value is not required, its the default for an option
+     * Version
      *
      * @var const
      */
-    const ARGUMENT_NOT_REQUIRED = 0;
-
-    /**
-     * Argument value is required, its the default for an operand
-     *
-     * @var const
-     */
-    const ARGUMENT_REQUIRED     = 1;
-
-    /**
-     * Argument value is optional
-     *
-     * @var const
-     */
-    const ARGUMENT_OPTIONAL     = 2;
-
-    /**
-     * initialized with IrfanTOOR\Console for using colors and write and writeln functions
-     *
-     * @var object
-     */
-    protected $console;
-
-    /**
-     * The arguments passed to this command
-     *
-     * @var array
-     */
-    protected $args;
-
-    /**
-     * name of this command
-     *
-     * @var string
-     */
-    protected $name;
-
-    /**
-     * description of this command
-     *
-     * @var string
-     */    
-    protected $description;
-
-    /**
-     * version of this commmand, default is "0.1"
-     *
-     * @var string
-     */    
-    protected $version  = "0.1";
-
-
-    /**
-     * version hash
-     *
-     * @var string
-     */    
-    protected $version_hash  = "";
+    const VERSION = "0.3";
 
 
     /**
@@ -120,13 +62,13 @@ class Command
         if (!$version) {
             # Constants::VERSION of called class or this class
             $ca = explode('\\', get_called_class());
-            $constants = '\\' . array_shift($ca) . '\\' . array_shift($ca) . '\\Constants';
+            $constants = '\\' . array_shift($ca) . '\\' . array_shift($ca);
             $constants = str_replace('\\\\', '\\', $constants);
 
             if (class_exists($constants)) {
                 $version = $constants::VERSION;
             } else {
-                $version = Constants::VERSION;
+                $version = self::VERSION;
             }
         }
 
