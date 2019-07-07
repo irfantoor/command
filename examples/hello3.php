@@ -9,12 +9,11 @@ class HelloCommand extends Command
 {
     function __construct()
     {
-        parent::__construct(
-            'hello3.php', 
-            'hello world! of command', 
-            null,
-            '1.3'
-        );
+        parent::__construct([
+            'name' => 'hello3.php', 
+            'description' => 'hello world! of command', 
+            'version' => '1.3'
+        ]);
 
         $this->addOption('g', 'greeting', 'Sets the greeting', self::ARGUMENT_OPTIONAL, 'Hello');
         $this->addOperand('name', 'Name to be greeted', self::ARGUMENT_OPTIONAL, 'World');

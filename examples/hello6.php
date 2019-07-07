@@ -5,13 +5,12 @@ require dirname(__DIR__) . "/vendor/autoload.php";
 
 use IrfanTOOR\Command;
 
-$cmd = new Command(
-    'hello1.php', 
-    'picks the version from version file', 
-    function($cmd){
-        $cmd->writeln("version loaded from file: " . $cmd->getVersion(), "yellow");
+$cmd = new Command([
+    'name' => 'hello1.php', 
+    'description' => 'picks the version from version file', 
+    'handler' => function($cmd){
+        $cmd->writeln("showing default version: " . $cmd->getVersion(), "yellow");
     },
-    null # the version file be checked, if present its contents will be used as version
-);
+]);
 
 $cmd->run();

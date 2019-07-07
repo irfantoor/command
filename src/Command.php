@@ -13,7 +13,7 @@ class Command
      *
      * @var const
      */
-    const VERSION = "0.3"; # @@VERSION
+    const VERSION = "0.4"; # @@VERSION
 
     /**
      * Argument value is not required, its the default for an option
@@ -93,11 +93,13 @@ class Command
     protected $options  = [];
 
     /**
-     * operands associated with this command, added using addOperand function 
+     * arguments associated with this command, added using addOperand function 
      *
      * @var array
      */
-    protected $operands = [];
+    protected $arguments = [];
+
+    protected $handler = null;
 
     /**
      * Constructs the command
@@ -108,53 +110,46 @@ class Command
      * @param string $version      optional: "0.1" by default
      * @param bool   $throw        throws exception or use builtin minimal exception handler
      */
-    public function __construct($name, $description, $handler = null, $version = null, $throw = false)
+    public function __construct(array $init)
     {
-        $this->console = new Console();
+        $defaults = [
+            'name' => 'test',
+            'version' => '0.1',
+            'description' => 'its a test command',
+            'usage' => null,
+            'handler' => [$this, "main"],
+            'options' => [],
+            'arguments' => [],
+            'commands' => [],
+            'throw'   => false,
+        ];
 
-        $this->name        = $name;
-        $this->description = $description;
 
-        if ($handler === null) {
-            $handler = [$this, 'main'];
-        }
-
-        $this->handler     = $handler;
-
-        if (!$version) {
-            # Constants::VERSION of called class or this class
-            $ca = explode('\\', get_called_class());
-            $constants = '\\' . array_shift($ca) . '\\' . array_shift($ca);
-            $constants = str_replace('\\\\', '\\', $constants);
-
-            if (class_exists($constants)) {
-                $version = $constants::VERSION;
+        foreach ($defaults as $k => $v) {
+            if (array_key_exists($k, $init)) {
+                $this->$k = $init[$k];
             } else {
-                $version = self::VERSION;
+                $this->$k = $v;
             }
         }
 
-        $this->version = $version;
-
-        # todo -- calculate the hash of the file containing this or the derived Command class
-        # better yet find a way to include the git hash ;-)
-        $class_hash =
-            # md5(fileOfClass(
-                get_called_class()
-            # ))
-            ;
-
-        $this->version_hash = md5($this->name . $this->description . $this->version . $class_hash);
-
-        if (!$throw) {
-            set_exception_handler(function($obj){
-                $this->exceptionHandler($obj);
-            });
+        if (!$this->throw) {
+            set_exception_handler([$this, "exceptionHandler"]);
         }
 
+        $options = $this->options;
+
+        $this->options = [];
+        
+        $this->addOption('h', 'help',    'Displays help');
+        $this->addOption('V', 'version', 'Displays version');
         $this->addOption('v', 'verbose', 'Adds verbosity');
-        $this->addOption('V', 'version', 'Displays version and quit');
-        $this->addOption('h', 'help',    'Displays this help and quit');
+
+        foreach ($options as $o) {
+            $this->addOption($o[0], $o[1], $o[2]);
+        }
+
+        $this->console = new Console();
     }
 
     /**
@@ -288,7 +283,7 @@ class Command
             throw new Exception("Invalid value for argument", 1);
         }
 
-        $this->operands[$name] = [
+        $this->arguments[$name] = [
             'name'        => $name,
             'description' => $description,
             'argument'    => $argument,
@@ -329,8 +324,8 @@ class Command
      */
     public function getOperand($name)
     {
-        if (array_key_exists($name, $this->operands)) {
-            return $this->operands[$name]['value'];
+        if (array_key_exists($name, $this->arguments)) {
+            return $this->arguments[$name]['value'];
         } else {
             throw new Exception("Unknown operand: " . $name, 1);
         }
@@ -341,45 +336,38 @@ class Command
      */
     public function help()
     {
-        $this->writeln($this->name . ' ' . $this->version, ['bold', 'white']);
-        $this->writeln($this->description);
+        $this->writeln($this->name . ' ' . $this->version, "info");
+        $this->writeln("");
+        $this->writeln("  " . $this->description);
         $this->writeln('');
 
-        $this->write("usage: ");
-        $usage = $this->name;
+        $this->write("usage: ", "info");
 
-        if (count($this->commands))
-            $usage .= ' <command>';
+        if (!$this->usage) {
+            $usage = $this->name;
 
-        $usage .= ' [options]';
+            if (count($this->commands))
+                $usage .= ' [<command>]';
 
-        if (count($this->operands)) {
-            $usage .= ' [--]';
-            foreach($this->operands as $k => $v) {
-                if ($v['argument'] == 1) {
-                    $usage .= ' <' . $v['name'] . '>';
-                } else {
-                    $usage .= ' [<' . $v['name'] . '>]';
+            $usage .= ' [options]';
+
+            if (count($this->arguments)) {
+                $usage .= ' [--]';
+                foreach($this->arguments as $k => $v) {
+                    if ($v['argument'] == 1) {
+                        $usage .= ' <' . $v['name'] . '>';
+                    } else {
+                        $usage .= ' [<' . $v['name'] . '>]';
+                    }
                 }
             }
-        }
 
-        $this->writeln($usage);
-
-        # Commands
-        if ($this->commands) {
-            echo PHP_EOL;
-
-            $this->writeln("Commands:");
-            $max = 0;
-
-            foreach ($this->commands as $k => $v) {
-                $max = max($max, strlen($k));
-            }
-
-            foreach ($this->commands as $k => $v) {
-                $this->write(' ' . $k . str_repeat(' ', $max + 4 - strlen($k)), 'green');
-                $this->writeln($v->getDescription(), 'yellow');
+            $this->writeln($usage);
+        } else {
+            $sep = "";
+            foreach ($this->usage as $usage) {
+                $this->writeln($sep . $usage);
+                $sep = "       ";
             }
         }
 
@@ -387,8 +375,8 @@ class Command
         echo PHP_EOL;
 
         if ($this->options) {
-            ksort($this->options);
-            $this->writeln("Options:");
+            // ksort($this->options);
+            $this->writeln("options:", 'info');
 
             $max = 0;
             foreach ($this->options as $k => $v) {
@@ -401,7 +389,7 @@ class Command
                 extract($v);
 
                 $s1 = strlen($short) ?: 4;
-                $s2 = $max - strlen($long) - 3;
+                $s2 = $max - strlen($long) - 6;
 
                 $sep1 = str_repeat(' ', $s1);
                 $sep2 = str_repeat(' ', $s2);
@@ -411,9 +399,9 @@ class Command
                     ($short && $long ? ',' : '') .         # ,
                     ($long ? ' --' . $long : '') .         # --long
                     $sep2,                                 # space before description
-                    'green');                              # color
+                    'yellow');                             # color
 
-                $this->write($description, 'yellow');    # description and color
+                $this->write($description);    # description and color
 
                 # print if the argument is required or optional and its default value if so
                 if ($argument == self::ARGUMENT_REQUIRED) {
@@ -429,25 +417,25 @@ class Command
             echo PHP_EOL;
         }
 
-        # Operands
-        if (count($this->operands)) {
-            $this->writeln('Operands:');
+        # Arguments
+        if (count($this->arguments)) {
+            $this->writeln('arguments:', "info");
 
             $max = 0;
-            foreach ($this->operands as $k => $v) {
+            foreach ($this->arguments as $k => $v) {
                 $max = max($max, strlen($k));
             }
 
             $max += 4;
 
-            foreach ($this->operands as $operand) {
+            foreach ($this->arguments as $operand) {
                 extract($operand);
 
                 $s = $max - strlen($name);
                 $sep = str_repeat(' ', $s);
 
-                $this->write(' ' . $name . $sep, 'green');
-                $this->write($description, 'yellow');
+                $this->write(' ' . $name . $sep, 'yellow');
+                $this->write($description);
 
                 # print if the argument is required or optional and its default value if so
                 if ($argument == self::ARGUMENT_REQUIRED) {
@@ -458,6 +446,23 @@ class Command
 
                 $this->writeln('');
             }
+
+            echo PHP_EOL;
+        } else if ($this->commands) {
+
+            $this->writeln("commands:", 'info');
+            $max = 0;
+
+            foreach ($this->commands as $k => $v) {
+                $max = max($max, strlen($k));
+            }
+
+            foreach ($this->commands as $k => $v) {
+                $this->write("  " . $k . str_repeat(' ', $max + 4 - strlen($k)), 'yellow');
+                $this->writeln($v->getDescription());
+            }
+
+            echo PHP_EOL;
         }
     }
 
@@ -484,7 +489,7 @@ class Command
      *
      * @param mixed $args if no arguments are provided, the args list passed on
      *                    the command line is used else the provided array of 
-     *                    arguments are parsed for options and operands.
+     *                    arguments are parsed for options and arguments.
      * @return mixed
      */
     public function run($args = null)
@@ -499,7 +504,7 @@ class Command
 
         $command  = count($this->commands) > 0;
         $options  = !$command;
-        $operands = false;
+        $arguments = false;
         $stop     = false;
 
         # if a command is required and no argument is present run the main() rather
@@ -522,7 +527,7 @@ class Command
                 $arg = substr($arg, 1);
             } elseif ($command) {
                 $token = 'command';
-            } elseif ($operands) {
+            } elseif ($arguments) {
                 $token = 'operand';
             } else {
                 $token = 'arg';
@@ -543,8 +548,8 @@ class Command
 
                 case 'operand':
                 case 'arg':
-                    foreach ($this->operands as $k => $v) {
-                        $this->operands[$k]['value'] = $arg;
+                    foreach ($this->arguments as $k => $v) {
+                        $this->arguments[$k]['value'] = $arg;
                         $i++;
                         if (!isset($args[$i]))
                             break;
@@ -557,7 +562,7 @@ class Command
                 case '--':
                     $command  = false;
                     $options  = false;
-                    $operands = true;
+                    $arguments = true;
                     break;
 
                 case 'short':
@@ -580,7 +585,7 @@ class Command
                             $this->options[$k]['value'] = substr($arg, $l + 1);
                             $l = strlen($arg);
                         } elseif ($argument === self::ARGUMENT_OPTIONAL) {
-                            if ($arg[$l + 1] === '=') {
+                            if (isset($arg[$l + 1]) && $arg[$l + 1] === '=') {
                                     $this->options[$k]['value'] = substr($arg, $l + 2);
                                     $l = strlen($arg);
                             } else {
@@ -645,8 +650,7 @@ class Command
         # version
         if ($this->getOption('version')) {
             // echo sprintf('%s: %s' . PHP_EOL, $this->name, $this->version);
-            $this->writeln($this->name . ' v' . $this->version, ['bold', 'white']);
-            $this->writeln('version hash: ' . $this->version_hash, 'yellow');
+            $this->writeln($this->name . ' v' . $this->version, 'info');
             exit;
         }
 
@@ -672,8 +676,8 @@ class Command
             }
         }
 
-        # check if all required operands have been provided
-        foreach ($this->operands as $k => $v) {
+        # check if all required arguments have been provided
+        foreach ($this->arguments as $k => $v) {
             extract($v);
             if ($argument == self::ARGUMENT_REQUIRED && $value === '') {
                 throw new Exception("Missing operand: " . $name, 1);

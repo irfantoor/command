@@ -5,13 +5,13 @@ require dirname(__DIR__) . "/vendor/autoload.php";
 
 use IrfanTOOR\Command;
 
-$cmd = new Command(
-    'hello1.php', 
-    'hello world! of command', 
-    function($cmd){
+$cmd = new Command([
+    'name' => 'hello1.php', 
+    'description' => 'hello world! of command', 
+    'handler' => function($cmd){
         $cmd->writeln("Hello World!", "yellow");
     },
-    '1.1'
-);
+    'version' => '1.1'
+]);
 
 $cmd->run();

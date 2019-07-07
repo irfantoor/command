@@ -8,7 +8,10 @@ class MockCommand extends Command
 {
     function __construct()
     {
-        parent::__construct('@@NAME', '@@DESCRIPTION');
+        parent::__construct([
+            'name' => '@@NAME', 
+            'description' => '@@DESCRIPTION'
+        ]);
     }
 
     function main()
@@ -21,14 +24,22 @@ class CommandTest extends Test
 {
     function testCommandInstance()
     {
-        $c = new Command('test', 'its a test');
+        $c = new Command([
+            'name' => 'test', 
+            'description' => 'its a test'
+        ]);
+
         $this->assertInstanceOf(IrfanTOOR\Command::class, $c);
     }
 
     function testConstruct()
     {
         # no handler
-        $c = new Command('@@NAME', '@@DESCRIPTION');
+        $c = new Command([
+            'name' => '@@NAME',
+            'description' => '@@DESCRIPTION'
+        ]);
+
         ob_start();
         $c->help();
         $help = ob_get_clean();
@@ -40,9 +51,13 @@ class CommandTest extends Test
         $this->assertEquals($help, $main);
 
         # handler
-        $c = new Command('@@NAME', '@@DESCRIPTION', function(){
-            echo 'Hello World!';
-        });
+        $c = new Command([
+            'name' => '@@NAME', 
+            'description' => '@@DESCRIPTION', 
+            'handler' => function() {
+                echo 'Hello World!';
+            }
+        ]);
 
         ob_start();
         $c->run();
@@ -51,7 +66,11 @@ class CommandTest extends Test
         $this->assertEquals('Hello World!', $main);
 
         # without version
-        $c = new Command('@@NAME', '@@DESCRIPTION');
+        $c = new Command([
+            'name' => '@@NAME',
+            'description' => '@@DESCRIPTION'
+        ]);
+
         $v = $c->getVersion();
 
         $this->assertNotEmpty($v);
@@ -60,7 +79,12 @@ class CommandTest extends Test
         $this->assertNotInt(strpos($v, 'VERSION'));
 
         # with version
-        $c = new Command('@@NAME', '@@DESCRIPTION', null, '@@VERSION');
+        $c = new Command([
+            'name' => '@@NAME',
+            'description' => '@@DESCRIPTION',
+            'version' => '@@VERSION',
+        ]);
+
         $v = $c->getVersion();
 
         # version
@@ -70,13 +94,19 @@ class CommandTest extends Test
         $this->assertEquals('@@VERSION', $v);
 
         # throw exception
-        $c = new Command('@@NAME', '@@DESCRIPTION', null, null, true);
+        $c = new Command([
+            'name' => '@@NAME',
+            'description' => '@@DESCRIPTION'
+        ]);
         $this->assertException(function() use($c){
             $c->run(['--go']);
         });
 
         # throw no exception
-        $c = new Command('@@NAME', '@@DESCRIPTION', null, null, false);
+        $c = new Command([
+            'name' => '@@NAME',
+            'description' => '@@DESCRIPTION'
+        ]);
         $this->assertException(function() use($c){
             $c->run(['--go']);
         });
@@ -85,7 +115,10 @@ class CommandTest extends Test
     function test__Call()
     {
         $c = new Console;
-        $cmd = new Command('@@NAME', '@@DESCRIPTION');
+        $cmd = new Command([
+            'name' => '@@NAME',
+            'description' => '@@DESCRIPTION'
+        ]);
 
         ob_start();
         $c->writeln('Hello World!', ['green']);
@@ -102,8 +135,12 @@ class CommandTest extends Test
 
     function testCommandHelp(): void
     {
-        $cmd = new Command('@@NAME', '@@DESCRIPTION',null, '1.0');
-        # $help = $cmd->optHelp([], []);
+        $cmd = new Command([
+            'name' => '@@NAME',
+            'description' => '@@DESCRIPTION',
+            'version' => '1.0'
+        ]);
+
         ob_start();
         $cmd->help();
         $help = ob_get_clean();
@@ -112,23 +149,28 @@ class CommandTest extends Test
         $this->assertString($help);
         $this->assertInt(strpos($help, '@@NAME'));
         $this->assertInt(strpos($help, '@@DESCRIPTION'));
-        $this->assertInt(strpos($help, 'usage: @@NAME [options]'));
+        $this->assertInt(strpos($help, 'usage'));
+        $this->assertInt(strpos($help, '@@NAME [options]'));
         $this->assertInt(strpos($help, '1.0'));
-        $this->assertInt(strpos($help, 'Options:'));
+        $this->assertInt(strpos($help, 'options:'));
         $this->assertInt(strpos($help, '-h'));
         $this->assertInt(strpos($help, '--help'));
-        $this->assertInt(strpos($help, 'Displays this help and quit'));
+        $this->assertInt(strpos($help, 'Displays help'));
         $this->assertInt(strpos($help, '-v'));
         $this->assertInt(strpos($help, '--verbose'));
         $this->assertInt(strpos($help, 'Adds verbosity'));
         $this->assertInt(strpos($help, '-V'));
         $this->assertInt(strpos($help, '--version'));
-        $this->assertInt(strpos($help, 'Displays version and quit'));
+        $this->assertInt(strpos($help, 'Displays version'));
     }
 
     public function testCommandRun(): void
     {
-        $cmd = new Command('@@NAME', '@@DESCRIPTION');
+        $cmd = new Command([
+            'name' => '@@NAME',
+            'description' => '@@DESCRIPTION'
+        ]);
+
         ob_start();
         $cmd->help();
         $help_output = ob_get_clean();
