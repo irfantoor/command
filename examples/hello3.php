@@ -16,13 +16,13 @@ class HelloCommand extends Command
         ]);
 
         $this->addOption('g', 'greeting', 'Sets the greeting', self::ARGUMENT_OPTIONAL, 'Hello');
-        $this->addOperand('name', 'Name to be greeted', self::ARGUMENT_OPTIONAL, 'World');
+        $this->addArgument('name', 'Name to be greeted', self::ARGUMENT_OPTIONAL, 'World');
     }
 
     function main()
     {
         $greeting = $this->getOption('greeting');
-        $name = ucfirst($this->getOperand('name'));
+        $name = ucfirst($this->getArgument('name'));
 
         $this->writeln($greeting . " " . $name, "yellow");
     }

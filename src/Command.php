@@ -13,7 +13,7 @@ class Command
      *
      * @var const
      */
-    const VERSION = "0.4"; # @@VERSION
+    const VERSION = "0.4.1"; # @@VERSION
 
     /**
      * Argument value is not required, its the default for an option
@@ -23,7 +23,7 @@ class Command
     const ARGUMENT_NOT_REQUIRED = 0;
 
     /**
-     * Argument value is required, its the default for an operand
+     * Argument value is required, its the default for an argument
      *
      * @var const
      */
@@ -93,7 +93,7 @@ class Command
     protected $options  = [];
 
     /**
-     * arguments associated with this command, added using addOperand function 
+     * arguments associated with this command, added using addArgument function
      *
      * @var array
      */
@@ -262,14 +262,14 @@ class Command
     }
 
     /**
-     * Adds an operand to this command
+     * Adds an argument to this command
      *
      * @param string $name        e.g. 'name'
-     * @param string $description description of this operand to be displayed in help
+     * @param string $description description of this argument to be displayed in help
      * @param const  $argument    ARGUMENT_NOT_REQUIRED | ARGUMENT_REQUIRED | ARGUMENT_OPTIONAL
      * @param string $default     default value for this option in case of ARGUMENT_OPTIONAL
      */
-    public function addOperand(
+    public function addArgument(
         $name, $description,
         $argument = self::ARGUMENT_REQUIRED, $default = '')
     {
@@ -316,18 +316,18 @@ class Command
     }
 
     /**
-     * Returns the value of an operand if present
+     * Returns the value of an argument if present
      *
      * @param string  $name        e.g. 'name'
      *
-     * @return string the value of the option if one was provided
+     * @return string the value of the argument if one was provided
      */
-    public function getOperand($name)
+    public function getArgument($name)
     {
         if (array_key_exists($name, $this->arguments)) {
             return $this->arguments[$name]['value'];
         } else {
-            throw new Exception("Unknown operand: " . $name, 1);
+            throw new Exception("Unknown argument: " . $name, 1);
         }
     }
 
@@ -428,8 +428,8 @@ class Command
 
             $max += 4;
 
-            foreach ($this->arguments as $operand) {
-                extract($operand);
+            foreach ($this->arguments as $argument) {
+                extract($argument);
 
                 $s = $max - strlen($name);
                 $sep = str_repeat(' ', $s);
@@ -528,7 +528,7 @@ class Command
             } elseif ($command) {
                 $token = 'command';
             } elseif ($arguments) {
-                $token = 'operand';
+                $token = 'argument';
             } else {
                 $token = 'arg';
             }
@@ -546,7 +546,7 @@ class Command
                     $i--;
                     break;
 
-                case 'operand':
+                case 'argument':
                 case 'arg':
                     foreach ($this->arguments as $k => $v) {
                         $this->arguments[$k]['value'] = $arg;
@@ -680,7 +680,7 @@ class Command
         foreach ($this->arguments as $k => $v) {
             extract($v);
             if ($argument == self::ARGUMENT_REQUIRED && $value === '') {
-                throw new Exception("Missing operand: " . $name, 1);
+                throw new Exception("Missing argument: " . $name, 1);
             }
         }
 

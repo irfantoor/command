@@ -13,7 +13,7 @@ $cmd = new Command([
     'description' => 'hello world! of command', 
     'handler' => function($cmd){
         $greeting = $cmd->getOption('greeting');
-        $name = ucfirst($cmd->getOperand('name'));
+        $name = ucfirst($cmd->getArgument('name'));
 
         $cmd->writeln($greeting . " " . $name, "yellow");
     }, 
@@ -22,6 +22,6 @@ $cmd = new Command([
 
 # -g=Hi or --greeting="Hi there,"
 $cmd->addOption('g', 'greeting', 'Sets the greeting', $cmd::ARGUMENT_OPTIONAL, 'Hello');
-$cmd->addOperand('name', 'Name to be greeted', $cmd::ARGUMENT_OPTIONAL, 'World');
+$cmd->addArgument('name', 'Name to be greeted', $cmd::ARGUMENT_OPTIONAL, 'World');
 
 $cmd->run();

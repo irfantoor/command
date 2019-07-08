@@ -21,13 +21,13 @@ require dirname(__DIR__) . "/vendor/autoload.php";
 
 use IrfanTOOR\Command;
 
-$cmd = new Command(
-    'hello1.php', 
-    'hello world! of command', 
-    function($cmd){
+$cmd = new Command([
+    'name' => 'hello1.php', 
+    'description' => 'hello world! of command', 
+    'handler' => function($cmd){
         $cmd->writeln("Hello World!", "yellow");
     },
-    '1.1'
+    'version' => '1.1'
 );
 
 $cmd->run();
@@ -48,30 +48,24 @@ ref: examples/hello4.php
 ```php
 <?php
 
-require dirname(__DIR__) . "/vendor/autoload.php";
-
-use IrfanTOOR\Command;
-
-# from hello3.php
 class HelloCommand extends Command
 {
     function __construct()
     {
-        parent::__construct(
-            'hello', 
-            'hello world! of command', 
-            null,
-            '1.3'
-        );
+        parent::__construct([
+            'name' => 'hello', 
+            'description' => 'hello world! of command', 
+            'version' => '1.3'
+        ]);
 
         $this->addOption('g', 'greeting', 'Sets the greeting', self::ARGUMENT_OPTIONAL, 'Hello');
-        $this->addOperand('name', 'Name to be greeted', self::ARGUMENT_REQUIRED);
+        $this->addArgument('name', 'Name to be greeted', self::ARGUMENT_REQUIRED);
     }
 
     function main()
     {
         $greeting = $this->getOption('greeting');
-        $name = ucfirst($this->getOperand('name'));
+        $name = ucfirst($this->getArgument('name'));
 
         $this->writeln($greeting . " " . $name, "yellow");
     }
@@ -81,12 +75,11 @@ class CalCommand extends Command
 {
     function __construct()
     {
-        parent::__construct(
-            'cal', 
-            'prints a calendar', 
-            null,
-            '1.0'
-        );
+        parent::__construct([
+            'name' => 'cal', 
+            'description' => 'prints a calendar',
+            'version' => '1.0'
+        ]);
     }
 
     function main()
@@ -99,14 +92,14 @@ class CalCommand extends Command
     }
 }
 
-$cmd = new Command(
-    'hello4.php',
-    'Its a composite command, i.e. it contains commmands',
-    function($cmd) {
+$cmd = new Command([
+    'name' => 'hello4.php',
+    'description' => 'Its a composite command, i.e. it contains commmands',
+    'handler' => function($cmd) {
         $cmd->help();
     },
-    '1.4'
-);
+    'version' => '1.4'
+]);
 
 $cmd->addCommand(new HelloCommand);
 $cmd->addCommand(new CalCommand);
@@ -123,16 +116,16 @@ $ php hello5.php
                                             
 $ php hello5.php -h
 hello5 2.0
-test the required option
+
+  test the required option
 
 usage: hello5 [options]
 
-Options:
- -h, --help         Displays this help and quit
- -r, --required     its an option which is required [required]
- -v, --verbose      Adds verbosity
- -V, --version      Displays version and quit
-
+options:
+ -h, --help      Displays help
+ -V, --version   Displays version
+ -v, --verbose   Adds verbosity
+ -r, --required  its an option which is required [required]
 
 $ php hello5.php -rHello
 OK the required option is: Hello
@@ -149,16 +142,15 @@ require dirname(__DIR__) . "/vendor/autoload.php";
 
 use IrfanTOOR\Command;
 
-$cmd = new Command(
-    'hello5',
-    'test the required option',
-    function($cmd){
+$cmd = new Command([
+    'name' => 'hello5',
+    'description' => 'test the required option',
+    'handler' => function($cmd){
         $req = $cmd->getOption('required');
-
         $cmd->writeln("OK the required option is: " . $req, 'green');
     },
-    '2.0'
-);
+    'version' => '2.0',
+]);
 
 $cmd->addOption('r', 'required', 'its an option which is required', $cmd::ARGUMENT_REQUIRED);
 $cmd->run();
