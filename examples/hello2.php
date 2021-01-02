@@ -1,4 +1,3 @@
-#!/usr/bin/env php
 <?php
 
 require dirname(__DIR__) . "/vendor/autoload.php";
@@ -9,7 +8,7 @@ use IrfanTOOR\Command;
 // $cmd = new Command('test', 'Its a test command');
 
 $cmd = new Command([
-    'name' => 'hello2.php', 
+    'name' => 'hello', 
     'description' => 'hello world! of command', 
     'handler' => function($cmd){
         $greeting = $cmd->getOption('greeting');
@@ -21,7 +20,7 @@ $cmd = new Command([
 ]);
 
 # -g=Hi or --greeting="Hi there,"
-$cmd->addOption('g', 'greeting', 'Sets the greeting', $cmd::ARGUMENT_OPTIONAL, 'Hello');
+$cmd->addOption('g|greeting', 'Sets the greeting', 'Hello');
 $cmd->addArgument('name', 'Name to be greeted', $cmd::ARGUMENT_OPTIONAL, 'World');
 
 $cmd->run();

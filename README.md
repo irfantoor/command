@@ -2,6 +2,9 @@
 
 Simplest way to make your console commands.
 
+Note: Since the inclusion of irfantoor\terminal, your commands can be run through
+a browser as well.
+
 Examples:
 
 A simple command to say "Hello World!"" on command line. The default options of verbosity, version and help are defained by default. So you can do like:
@@ -48,18 +51,27 @@ ref: examples/hello4.php
 ```php
 <?php
 
+require dirname(__DIR__) . "/vendor/autoload.php";
+
+use IrfanTOOR\Command;
+use IrfanTOOR\Debug;
+Debug::enable(1);
+
 class HelloCommand extends Command
 {
     function __construct()
     {
         parent::__construct([
             'name' => 'hello', 
-            'description' => 'hello world! of command', 
-            'version' => '1.3'
+            'description' => 'hello world! of command',
+            'version' => '1.3',
         ]);
+    }
 
-        $this->addOption('g', 'greeting', 'Sets the greeting', self::ARGUMENT_OPTIONAL, 'Hello');
-        $this->addArgument('name', 'Name to be greeted', self::ARGUMENT_REQUIRED);
+    function init()
+    {
+        $this->addOption('g|greeting', 'Sets the greeting', 'Hello');
+        $this->addArgument('name', 'Name to be greeted', self::ARGUMENT_OPTIONAL, 'World!');
     }
 
     function main()
@@ -77,81 +89,88 @@ class CalCommand extends Command
     {
         parent::__construct([
             'name' => 'cal', 
-            'description' => 'prints a calendar',
-            'version' => '1.0'
+            'description' => 'prints a calendar', 
+            'version' => '0.1'
         ]);
     }
 
     function main()
     {
-        $result = $this->system('cal');
-        if ($result['exit_code'] === 0)
-            $this->write($result['output'], 'cyan');
-        else
-            $this->write($result['output'], 'red');
+        ob_start();
+        system("cal");
+        $output = ob_get_clean();
+        $this->writeln($output, "yellow");
     }
 }
 
 $cmd = new Command([
-    'name' => 'hello4.php',
-    'description' => 'Its a composite command, i.e. it contains commmands',
+    'name' => 'hello4',
+    'description' => "Composit command",
+    'version' => '1.4',
     'handler' => function($cmd) {
-        $cmd->help();
-    },
-    'version' => '1.4'
+    }
 ]);
 
-$cmd->addCommand(new HelloCommand);
-$cmd->addCommand(new CalCommand);
+$cmd->addCommand(HelloCommand::class);
+$cmd->addCommand(CalCommand::class);
+
 $cmd->run();
 ```
 
-Note that optional value is provided after an '=' as in previous example, but if an option is required it can proceed without an '=' sign.
+If the default value of an option is not provided its assumed as integer and
+every of its presense as an option will add 1 to its current value, e.g:
+command -v  # verbosity = 1
+command -vv # verbosuty = 2
+
+If the default value of an option is a string, whenever such option is
+used it must always be followed by its value. For example hello4.php with a greeting "Hi" can be used in this way:
+
+```sh
+php hello4.php hello -g Hi irfan
+# or
+php hello4.php hello --greeting "Hay you! cheers" man
+```
+
+The arguments can be parsed as a string in url, or can be POSTed:
+```sh
+$ php hello4.php -h
+# http://localhost:8000/hello4.php?args=-h
+
+
+$ php hello4.php hello -g Hi irfan
+
+# args as string:
+# http://localhost:8000/hello4.php?args=hello%20-g%20Hi%20irfan
+
+# args as array
+# http://localhost:8000/hello4.php?args[]=hello&args[]=-g&args[]=Hi&args[]=irfan
+
+# args must be used as array, when args values has spaces e.g.:
+# http://localhost:8000/hello4.php?args[]=hello&args[]=-g&args[]=Hay%20You!&args[]=young%20man
+```
 
 ex:
 ```sh
-$ php hello5.php
-                                            
-  Error - Missing option value: --required  
+$ php hello5.php        
+|  Error: Missing argument: required
                                             
 $ php hello5.php -h
-hello5 2.0
+hello 2.0
 
-  test the required option
+test the required argument
 
-usage: hello5 [options]
+usage: hello [options] [--] <required>
 
 options:
- -h, --help      Displays help
- -V, --version   Displays version
- -v, --verbose   Adds verbosity
- -r, --required  its an option which is required [required]
+ -h, --help     Displays help
+ -V, --version  Displays version
+     --ansi     force ANSI outupt
+     --no-ansi  disable ANSI output
+ -v, --verbose  Adds verbosity
 
-$ php hello5.php -rHello
-OK the required option is: Hello
+arguments:
+ required    its a required argument [required]
 
-$ php hello5.php --required World!
-OK the required option is: World!
-```
-
-ref: examples/hello5.php
-```php
-<?php
-
-require dirname(__DIR__) . "/vendor/autoload.php";
-
-use IrfanTOOR\Command;
-
-$cmd = new Command([
-    'name' => 'hello5',
-    'description' => 'test the required option',
-    'handler' => function($cmd){
-        $req = $cmd->getOption('required');
-        $cmd->writeln("OK the required option is: " . $req, 'green');
-    },
-    'version' => '2.0',
-]);
-
-$cmd->addOption('r', 'required', 'its an option which is required', $cmd::ARGUMENT_REQUIRED);
-$cmd->run();
+$ php hello5.php Hello
+OK the required argument is: Hello
 ```

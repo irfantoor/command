@@ -1,391 +1,395 @@
 <?php
 
+/**
+ * IrfanTOOR\Command
+ * php version 7.3
+ *
+ * @author    Irfan TOOR <email@irfantoor.com>
+ * @copyright 2021 Irfan TOOR
+ */
+
 namespace IrfanTOOR;
 
 use Exception;
-use IrfanTOOR\Console;
-use IrfanTOOR\Debug;
+use IrfanTOOR\{
+    Terminal,
+    Debug
+};
+use Throwable;
 
-class Command
+/**
+ * Create shell commands, using php
+ */
+class Command extends Terminal
 {
-    /**
-     * Command Version
-     *
-     * @var const
-     */
-    const VERSION = "0.4.1"; # @@VERSION
+    const NAME        = "Command";
+    const DESCRIPTION = "Create shell commands, using php";
+    const VERSION     = "0.5";
+
+    # Return codes
+    const SUCCESS = 0;
+    const FAILED  = 1;
+
+    # Argument types
+    const ARGUMENT_OPTIONAL = 1;
+    const ARGUMENT_REQUIRED = 2;
+
+    # Command definition
+    protected $command = [
+        # name, version & description
+        "name"        => "",
+        "version"     => "",
+        "description" => "",
+
+        # Usage and help
+        "usage"       => [],
+        "help"        => null,
+
+        # Optional parameters
+        "options"     => [],
+        "arguments"   => [],
+        "commands"    => [],
+
+        # The command to run, if any
+        "command"      => null,
+        "command_args" => [],
+
+        # handler
+        "handler"     => null,
+    ];
+
+    protected $ansi    = false;
+    protected $noansi  = false;
 
     /**
-     * Argument value is not required, its the default for an option
+     * Command constructor
      *
-     * @var const
+     * @param string 
      */
-    const ARGUMENT_NOT_REQUIRED = 0;
-
-    /**
-     * Argument value is required, its the default for an argument
-     *
-     * @var const
-     */
-    const ARGUMENT_REQUIRED     = 1;
-
-    /**
-     * Argument value is optional
-     *
-     * @var const
-     */
-    const ARGUMENT_OPTIONAL     = 2;
-
-    /**
-     * initialized with IrfanTOOR\Console for using colors and write and writeln functions
-     *
-     * @var object
-     */
-    protected $console;
-
-    /**
-     * The arguments passed to this command
-     *
-     * @var array
-     */
-    protected $args;
-
-    /**
-     * name of this command
-     *
-     * @var string
-     */
-    protected $name;
-
-    /**
-     * description of this command
-     *
-     * @var string
-     */
-    protected $description;
-
-    /**
-     * version of this commmand, default is "0.1"
-     *
-     * @var string
-     */
-    protected $version  = "0.1";
-
-    /**
-     * version hash
-     *
-     * @var string
-     */
-    protected $version_hash  = "";
-
-    /**
-     * array of commands, if this is a composit command, added using addCommand function
-     *
-     * @var array
-     */
-    protected $commands = [];
-
-    /**
-     * options associated with this command, added using addOption function 
-     *
-     * @var array
-     */
-    protected $options  = [];
-
-    /**
-     * arguments associated with this command, added using addArgument function
-     *
-     * @var array
-     */
-    protected $arguments = [];
-
-    protected $handler = null;
-
-    /**
-     * Constructs the command
-     *
-     * @param string $name         name of the command to be displayed in help
-     * @param string $description  description of the command to be displayed in help
-     * @param mixed  $handler      optional: null or a closure, in case of null function main will be used as handler
-     * @param string $version      optional: "0.1" by default
-     * @param bool   $throw        throws exception or use builtin minimal exception handler
-     */
-    public function __construct(array $init)
+    public function __construct(array $init = [])
     {
-        $defaults = [
-            'name' => 'test',
-            'version' => '0.1',
-            'description' => 'its a test command',
-            'usage' => null,
-            'handler' => [$this, "main"],
-            'options' => [],
-            'arguments' => [],
-            'commands' => [],
-            'throw'   => false,
-        ];
+        parent::__construct();
+        error_reporting(0);
 
+        # initialize
+        $this->setName($init['name'] ?? self::NAME);
+        $this->setDescription($init['description'] ?? self::DESCRIPTION);
+        $this->setVersion($init['version'] ?? self::VERSION);
+        $this->setHandler($init['handler'] ?? null);
 
-        foreach ($defaults as $k => $v) {
-            if (array_key_exists($k, $init)) {
-                $this->$k = $init[$k];
-            } else {
-                $this->$k = $v;
-            }
-        }
+        # Default options, present in all commands
+        $this->addOption('h|help',    'Displays help');
+        $this->addOption('V|version', 'Displays version');
 
-        if (!$this->throw) {
-            set_exception_handler([$this, "exceptionHandler"]);
-        }
+        $this->addOption('ansi',      'force ANSI outupt');
+        $this->addOption('no-ansi',   'disable ANSI output');
 
-        $options = $this->options;
-
-        $this->options = [];
-        
-        $this->addOption('h', 'help',    'Displays help');
-        $this->addOption('V', 'version', 'Displays version');
-        $this->addOption('v', 'verbose', 'Adds verbosity');
-
-        foreach ($options as $o) {
-            $this->addOption($o[0], $o[1], $o[2]);
-        }
-
-        $this->console = new Console();
+        $this->addOption('v|verbose', 'Adds verbosity');
     }
 
     /**
-     * Used to simplyfy console calls
-     * The console functions e.g. write or writeln etc. can be called using $this->writeln() notation
+     * Write text to output
+     *
+     * @param string $text       Text to be printed
+     * @param string $styles     Comma separated styles in the string
+     * @param bool   $force_ansi Force the output to be printed use ANSI colors
      */
-    public function __call($method, $args)
-    {
-        if (is_callable([$this->console, $method])) {
-            return call_user_func_array([$this->console, $method], $args);
+    public function write(
+        string $text,
+        ?string $styles = null,
+        bool $force_ansi = false
+    ) {
+        if ($force_ansi) {
+            parent::write($text, $styles, true);
         } else {
-            throw new Exception("Command: Unknown Method '$method'");
+            if ($this->ansi) {
+                parent::write($text, $styles, true);
+            } elseif($this->noansi) {
+                parent::write($text);
+            } else {
+                parent::write($text, $styles);
+            }
         }
     }
 
     /**
-     * Minimal exception handler
+     * Sets the command name
+     *
+     * @param string $name Name of the command
      */
-    public function exceptionHandler($e)
+    # 
+    # @param string $name
+    public function setName(string $name)
     {
-        $this->console->writeln([$e->getMessage()], ['bg_red', 'white']);
+        $this->command['name'] = $name;
     }
 
     /**
-     * Returns the name of this command
+     * Sets the command version
      *
-     * @return string
+     * @param string $version
      */
-    public function getName()
+    public function setVersion(string $version)
     {
-        return $this->name;
+        $this->command['version'] = $version;
     }
 
     /**
-     * Returns the description of this command
+     * Sets the command description
      *
-     * @return string
+     * @param string $description 
      */
-    public function getDescription()
+    public function setDescription(string $description)
     {
-        return $this->description;
+        $this->command['description'] = $description;
     }
 
     /**
-     * Returns the version of this command
+     * Sets the command handler function
      *
-     * @return string
+     * @param closure|invokable $handler
      */
-    public function getVersion()
+    public function setHandler($handler)
     {
-        return $this->version;
+        $this->command['handler'] = $handler;
     }
 
     /**
-     * Returns the Base Path of this command
-     *
-     * @return string
+     * Initializes the command, with options and arguments
+     * Note: Add options and arguments here in your derived calss
      */
-    public function getCmdBasePath()
+    protected function init()
     {
-        $path = null;
+    }
 
-        $parts = explode('\\', get_called_class());
-        $class   = array_pop($parts);
-        $files   = get_included_files();
+    /**
+     * Configure the command
+     */
+    protected function configure()
+    {
+    }
 
-        foreach($files as $file) {
-            if (strpos($file, $class . '.php') !==false) {
-                $pos  = strrpos($file, '/src/');
-                $path = substr($file, 0, $pos + 1);
-                break;
+    /**
+     * Adds an option
+     * Note: single letter is preceded with one '-' and multi-letter with two
+     *       '--', while passing an option e.g -h -a -s or --simple --help etc.
+     *       When a combination of letters is preceeded with a '-' all of the
+     *       letters are considered as separate options:
+     *          e.g. -has is like: -h -a -s
+     *
+     * @param string $name        e.g 'h|help' or 'capital' (without short name)
+     * @param string $description e.g. "Displays help"
+     * @param mixed  $default     Default value of the option, if this is present
+     *                            the must be provided, when using this option
+     */
+    public function addOption(string $name, string $description, $default = null)
+    {
+        $list = explode('|', $name);
+        $short = null;
+
+        foreach ($list as $v) {
+            $v = trim($v);
+
+            if (strlen($v) === 1) {
+                $short = $v;
+            } else {
+                $long = $v;
             }
         }
 
-        return $path;
-    }
-
-    /**
-     * Adds a command to this command, (Note: this command becomes a composite command)
-     *
-     * @param Command $command e.g. $this->addCommand(new HelloCommand());
-     */
-    public function addCommand(Command $command)
-    {
-        $this->commands[$command->getName()] = $command;
-    }
-
-    /**
-     * Adds an option to this command
-     *
-     * @param char   $short       e.g. 'g'
-     * @param string $long        e.g. 'greeting'
-     * @param string $description description of this option to be displayed in help
-     * @param const  $argument    ARGUMENT_NOT_REQUIRED | ARGUMENT_REQUIRED | ARGUMENT_OPTIONAL
-     * @param string $default     default value for this option in case of ARGUMENT_OPTIONAL
-     */
-    public function addOption(
-        $short, $long, $description,
-        $argument = self::ARGUMENT_NOT_REQUIRED, $default = 0)
-    {
-        $k = strtolower($short . $long);
-
-        $this->options[$k] = [
-            'short'       => str_replace(':', '', $short),
-            'long'        => str_replace(':', '', $long),
+        $this->command['options'][$long] = [
+            'short'       => $short,
+            'long'        => $long,
             'description' => $description,
-            'argument'    => $argument,
-            'value'       => ($argument === self::ARGUMENT_REQUIRED) ? 0 : $default,
+
+            # this will be changed while passed parameter parsing
+            'value'       => $default,
         ];
     }
 
     /**
-     * Adds an argument to this command
+     * Adds a command argument
      *
-     * @param string $name        e.g. 'name'
-     * @param string $description description of this argument to be displayed in help
-     * @param const  $argument    ARGUMENT_NOT_REQUIRED | ARGUMENT_REQUIRED | ARGUMENT_OPTIONAL
-     * @param string $default     default value for this option in case of ARGUMENT_OPTIONAL
+     * @param string $name Name of the argument e.g. "path"
+     * @param array  $def  ['description' => ..., 'type' => ...]
      */
     public function addArgument(
-        $name, $description,
-        $argument = self::ARGUMENT_REQUIRED, $default = '')
-    {
-        if (!
-            (
-                $argument == self::ARGUMENT_REQUIRED ||
-                $argument == self::ARGUMENT_OPTIONAL
-            )
+        string $name, 
+        string $description, 
+        int $type = self::ARGUMENT_OPTIONAL,
+        $default = null
         )
-        {
-            throw new Exception("Invalid value for argument", 1);
-        }
-
-        $this->arguments[$name] = [
+    {
+        $this->command['arguments'][$name] = [
             'name'        => $name,
             'description' => $description,
-            'argument'    => $argument,
-            'value'       => ($argument === self::ARGUMENT_REQUIRED) ? '' : $default,
+            'type'        => $type,
+            'default'     => $default,
+
+            # this will be changed while passed parameter parsing
+            'value'       => null,
         ];
     }
 
     /**
-     * Returns the count or value of an option
+     * Adds a sub command to this command
+     * Note: if a sub command is present
      *
-     * @param string $name e.g. 'greeting'
-     *
-     * @return mixed int count of the option OR string value of the option if one was provided
+     * @param string $name
+     * @param string $class
      */
-    public function getOption($name)
+    public function addCommand(string $class)
     {
-        $found = false;
-        foreach ($this->options as $k => $v) {
-            extract($v);
-            if ($short === $name || $long === $name) {
-                $found = true;
-                break;
-            }
-        }
-
-        if (!$found)
-            throw new Exception("Unknown option: " . $name, 1);
-
-        return $value;
+        $command = new $class();
+        $name = $command->getName();    
+        $this->command['commands'][$name] = $command;
+        
     }
 
     /**
-     * Returns the value of an argument if present
+     * Sets the value of an option programatically
+     * Note: you might need to do an init() or configure()
      *
-     * @param string  $name        e.g. 'name'
-     *
-     * @return string the value of the argument if one was provided
+     * @param string          $name  Option name
+     * @param null|int|string $value Option value
      */
-    public function getArgument($name)
+    public function setOption(string $name, $value)
     {
-        if (array_key_exists($name, $this->arguments)) {
-            return $this->arguments[$name]['value'];
-        } else {
-            throw new Exception("Unknown argument: " . $name, 1);
-        }
+        $this->command['options'][$name]['value'] = $value;
     }
 
     /**
-     * Prints the help of the command when an option -h or --help is gived on command line
+     * Retrieve the value of an option
+     *
+     * @param string $name Name of the Option
+     * @return null|int|string Value of the option, after parsing
+     */
+    public function getOption(string $name)
+    {
+        return $this->command['options'][$name]['value'] ?? null;
+    }
+
+    /**
+     * Sets the value of an argument programatically
+     * Note: you might need to do an init() or configure()
+     *
+     * @param string      $name  Name of the argument
+     * @param null|string $value Value of the argument
+     */
+    public function setArgument(string $name, $value)
+    {
+        $this->command['arguments'][$name]['value'] = $value;
+    }
+
+    /** Retrieve the value of an argument
+     *
+     * @param string $name Argument name
+     * @return null|string Argument value (after parsing)
+     */
+    public function getArgument(string $name)
+    {
+        return $this->command['arguments'][$name]['value'] ?? $this->command['arguments'][$name]['default'];
+    }
+
+    /**
+     * Retrieve the name of this command
+     *
+     * @return string
+     */
+    public function getName(): string
+    {
+        return $this->command['name'];
+    }
+
+    /**
+     * Retrieve the command version
+     *
+     * @return string
+     */
+    public function getVersion(): string
+    {
+        return $this->command['version'];
+    }
+
+    /**
+     * Retrive the command description
+     *
+     * @return string
+     */
+    public function getDescription(): string
+    {
+        return $this->command['description'];
+    }
+
+    /**
+     * Prints the name of the command and its version 
+     */
+    public function title()
+    {
+        $this->writeln($this->getName() . ' ' . $this->getVersion(), "info");
+    }
+
+    /**
+     * Prints the help, called when an option -h or --help is provided 
      */
     public function help()
     {
-        $this->writeln($this->name . ' ' . $this->version, "info");
-        $this->writeln("");
-        $this->writeln("  " . $this->description);
-        $this->writeln('');
+        $this->title();
+        $this->writeln();
+        $this->writeln($this->getDescription());
+        $this->writeln();
 
         $this->write("usage: ", "info");
 
-        if (!$this->usage) {
-            $usage = $this->name;
+        if (!$this->command['help']) {
+            $usage = $this->getName();
 
-            if (count($this->commands))
+            if (count($this->command['commands']))
                 $usage .= ' [<command>]';
 
             $usage .= ' [options]';
 
-            if (count($this->arguments)) {
+            if (count($this->command['arguments'])) {
                 $usage .= ' [--]';
-                foreach($this->arguments as $k => $v) {
-                    if ($v['argument'] == 1) {
+
+                foreach($this->command['arguments'] as $k => $v) {
+                    if ($v['type'] == self::ARGUMENT_REQUIRED) {
                         $usage .= ' <' . $v['name'] . '>';
                     } else {
-                        $usage .= ' [<' . $v['name'] . '>]';
+                        $usage .= ' [<' . $k . '>]';
                     }
                 }
+            }
+
+            if (PHP_SAPI != "cli") {
+                $usage = htmlentities($usage);
             }
 
             $this->writeln($usage);
         } else {
             $sep = "";
-            foreach ($this->usage as $usage) {
+
+            foreach ($this->command['usage'] as $usage) {
                 $this->writeln($sep . $usage);
                 $sep = "       ";
             }
         }
 
         # Options
-        echo PHP_EOL;
+        $this->writeln();
 
-        if ($this->options) {
-            // ksort($this->options);
+        if ($this->command['options']) {
+            // ksort($this->command['options']);
             $this->writeln("options:", 'info');
-
             $max = 0;
-            foreach ($this->options as $k => $v) {
+
+            foreach ($this->command['options'] as $k => $v) {
                 extract($v);
                 $l = max(strlen($short), 6) + strlen($long) + 2;
                 $max = max($max, $l);
             }
 
-            foreach ($this->options as $k => $v) {
+            foreach ($this->command['options'] as $k => $v) {
                 extract($v);
 
                 $s1 = strlen($short) ?: 4;
@@ -399,125 +403,121 @@ class Command
                     ($short && $long ? ',' : '') .         # ,
                     ($long ? ' --' . $long : '') .         # --long
                     $sep2,                                 # space before description
-                    'yellow');                             # color
+                    'green');                              # color
 
-                $this->write($description);    # description and color
-
-                # print if the argument is required or optional and its default value if so
-                if ($argument == self::ARGUMENT_REQUIRED) {
-                    $this->write(' [required]', 'dark');
-                } elseif ($argument == self::ARGUMENT_OPTIONAL) {
-                    $this->write(' [optional, default: ' . print_r($value, 1) . ']', 'dark');
-                }
-
-                $this->writeln('');
-
+                $this->writeln($description);
             }
 
-            echo PHP_EOL;
+            $this->writeln();
         }
 
-        # Arguments
-        if (count($this->arguments)) {
+        # arguments
+        if (count($this->command['arguments'])) {
             $this->writeln('arguments:', "info");
 
             $max = 0;
-            foreach ($this->arguments as $k => $v) {
+            foreach ($this->command['arguments'] as $k => $v) {
                 $max = max($max, strlen($k));
             }
 
             $max += 4;
 
-            foreach ($this->arguments as $argument) {
+            foreach ($this->command['arguments'] as $argument) {
                 extract($argument);
 
                 $s = $max - strlen($name);
                 $sep = str_repeat(' ', $s);
 
-                $this->write(' ' . $name . $sep, 'yellow');
+                $this->write(' ' . $name . $sep, 'green');
                 $this->write($description);
 
                 # print if the argument is required or optional and its default value if so
-                if ($argument == self::ARGUMENT_REQUIRED) {
+                if ($type == self::ARGUMENT_REQUIRED) {
                     $this->write(' [required]', 'dark');
-                } elseif ($argument == self::ARGUMENT_OPTIONAL) {
-                    $this->write(' [optional, default: ' . print_r($value, 1) . ']', 'dark');
+                } elseif ($type == self::ARGUMENT_OPTIONAL) {
+                    $this->write(' [optional, default: ' . print_r($default, 1) . ']', 'dark');
                 }
 
-                $this->writeln('');
+                $this->writeln();
             }
 
-            echo PHP_EOL;
-        } else if ($this->commands) {
-
+            $this->writeln();
+        } elseif ($this->command['commands']) {
             $this->writeln("commands:", 'info');
             $max = 0;
 
-            foreach ($this->commands as $k => $v) {
+            foreach ($this->command['commands'] as $k => $v) {
                 $max = max($max, strlen($k));
             }
 
-            foreach ($this->commands as $k => $v) {
-                $this->write("  " . $k . str_repeat(' ', $max + 4 - strlen($k)), 'yellow');
+            foreach ($this->command['commands'] as $k => $v) {
+                $this->write("  " . $k . str_repeat(' ', $max + 4 - strlen($k)), 'green');
                 $this->writeln($v->getDescription());
             }
 
-            echo PHP_EOL;
+            $this->writeln();
+        } else {
+            $argument = "";
         }
+
+        return self::SUCCESS;
     }
 
     /**
-     * Runs a system command and returns the result
-     *
-     * @param string $command
-     *
-     * @return array output and exit_code are returned
+     * Prints the version information 
      */
-
-    public function system($command)
+    public function version()
     {
-        $command .= ' 2>&1';
-        ob_start();
-        system($command, $exit_code);
-        $output = ob_get_clean();
+        $this->title();
+        return self::SUCCESS;
+    }
+
+    /**
+     * Executes a command in the current path
+     * todo -- if we cd to a path, it must keep track during the same call
+     *
+     * @param string $cmd System command to be executed
+     * @return array Result is like: ["output" => "...", "exit_code" => 0]
+     */
+    public function execute(string $cmd): array
+    {
+        $output    = "";
+        $exit_code = 0;
+
+        if ($cmd !== "") {
+            ob_start();
+            system($cmd . " 2>/dev/stdout", $exit_code);
+            $output = ob_get_clean();
+        }
+
         return compact(['output', 'exit_code']);
     }
 
     /**
-     * Used to run the command. Parses the arguments and executes the provided 
-     * handler or function main.
+     * Parses the passed arguments
      *
-     * @param mixed $args if no arguments are provided, the args list passed on
-     *                    the command line is used else the provided array of 
-     *                    arguments are parsed for options and arguments.
-     * @return mixed
+     * @param array $args
      */
-    public function run($args = null)
+    public function parseArguments(array $args)
     {
-        # process arguments
-        if ($args === null) {
-            $args = $_SERVER['argv'];
-            array_shift($args);
-        }
+        # strip the command name
+        array_shift($args);
 
-        $this->args = $args;
-
-        $command  = count($this->commands) > 0;
+        # what is expected?
+        $command  = count($this->command['commands']) > 0;
         $options  = !$command;
         $arguments = false;
         $stop     = false;
+        $waiting  = false;
+        $option   = '';
 
-        # if a command is required and no argument is present run the main() rather
-        # main(): by defaults shows the help
-        if ((count($args) === 0) && $command) {
-            $this->main();
-            exit;
-        }
-
+        # process the passed args
         for ($i = 0; $i < count($args); $i++) {
             $arg = $args[$i];
 
-            if ($arg === '--') {
+            if ($waiting) {
+                $token = 'value';
+            } elseif ($arg === '--') {
                 $token = '--';
             } elseif (strpos($arg, '--') === 0) {
                 $token = 'long';
@@ -535,27 +535,27 @@ class Command
 
             switch ($token) {
                 case 'command':
-                    if (array_key_exists($arg, $this->commands)) {
-                        array_shift($args);
-                        $this->commands[$arg]->run($args);
-                        exit;
+                    if (array_key_exists($arg, $this->command['commands'])) {
+                        $this->command['command'] = $this->command['commands'][$arg];
+                        $this->command['command_args'] = $args;
                     } else {
                         throw new Exception("Unknown command: " . $arg, 1);
                     }
-                    $command = false;
-                    $i--;
+
+                    $stop = true;
                     break;
 
                 case 'argument':
                 case 'arg':
-                    foreach ($this->arguments as $k => $v) {
-                        $this->arguments[$k]['value'] = $arg;
+                    foreach ($this->command['arguments'] as $k => $v) {
+                        $this->command['arguments'][$k]['value'] = $arg;
                         $i++;
                         if (!isset($args[$i]))
                             break;
                         else
                             $arg = $args[$i];
                     }
+
                     $stop = true;
                     break;
 
@@ -569,7 +569,8 @@ class Command
                     for ($l = 0; $l < strlen($arg); $l++) {
                         $a = $arg[$l];
                         $found = false;
-                        foreach ($this->options as $k => $v) {
+
+                        foreach ($this->command['options'] as $k => $v) {
                             extract($v);
                             if ($short === $a) {
                                 $found = true;
@@ -581,18 +582,14 @@ class Command
                             throw new Exception("Unknown option: " . $arg, 1);
                         }
 
-                        if ($argument === self::ARGUMENT_REQUIRED) {
-                            $this->options[$k]['value'] = substr($arg, $l + 1);
-                            $l = strlen($arg);
-                        } elseif ($argument === self::ARGUMENT_OPTIONAL) {
-                            if (isset($arg[$l + 1]) && $arg[$l + 1] === '=') {
-                                    $this->options[$k]['value'] = substr($arg, $l + 2);
-                                    $l = strlen($arg);
-                            } else {
-                                throw new Exception("Missing required option: " . $arg, 1);
-                            }
+                        if (is_null($this->command['options'][$k]['value'])) {
+                            $this->command['options'][$k]['value'] = 1;
+                        } elseif(is_int($this->command['options'][$k]['value'])) {
+                            $this->command['options'][$k]['value'] += 1;
                         } else {
-                            $this->options[$k]['value'] += 1;
+                            $waiting = true;
+                            $option = $k;
+                            break;
                         }
                     }
 
@@ -608,8 +605,10 @@ class Command
                     }
 
                     $found = false;
-                    foreach ($this->options as $k => $v) {
+
+                    foreach ($this->command['options'] as $k => $v) {
                         extract($v);
+
                         if ($long === $arg) {
                             $found = true;
                             break;
@@ -620,79 +619,127 @@ class Command
                         throw new Exception("Unknown option: " . $arg, 1);
                     }
 
-                    if ($argument === self::ARGUMENT_OPTIONAL) {
-                        if ($arg_value != null) {
-                            $this->options[$k]['value'] = $arg_value;
+                    if ($arg_value != null) {
+                        $this->command['options'][$k]['value'] = $arg_value;
+                    } else {                                                        
+                        if (is_null($this->command['options'][$k]['value'])) {
+                            $this->command['options'][$k]['value'] = 1;
+                        } elseif(is_int($this->command['options'][$k]['value'])) {
+                            $this->command['options'][$k]['value'] += 1;
                         } else {
-                            $this->options[$k]['value'] += 1;
+                            $waiting = true;
+                            $option = $k;
+                            break;
                         }
-                    } elseif ($argument === self::ARGUMENT_REQUIRED) {
-                        if (isset($args[$i + 1])) {
-                            $this->options[$k]['value'] = $args[$i + 1];
-                            $i++;
-                        } else {
-                            throw new Exception("Missing required option: " . $arg, 1);
-                        }
-                    } else {
-                        $this->options[$k]['value'] += 1;
                     }
 
                     break;
+
+                case 'value':
+                    $this->command['options'][$option]['value'] = $arg;
+                    $waiting = false;
+                    $option = "";
+                    break;
             }
-        }
 
-        # verbosity
-        $this->verbose = $this->getOption('verbose');
-        if ($this->verbose) {
-            Debug::enable($this->verbose);
+            if ($stop)
+                break;
         }
-
-        # version
-        if ($this->getOption('version')) {
-            // echo sprintf('%s: %s' . PHP_EOL, $this->name, $this->version);
-            $this->writeln($this->name . ' v' . $this->version, 'info');
-            exit;
-        }
-
-        # help
-        if ($option = $this->getOption('help')) {
-            $this->help($option);
-            exit;
-        }
-
-        if (count($this->commands))
-        {
-            throw new Exception("Missing command", 1);
-        }
-
-        # check if all required options have been provided
-        foreach ($this->options as $k => $v) {
-            extract($v);
-            if ($argument == self::ARGUMENT_REQUIRED && $value === 0) {
-                if ($long)
-                    throw new Exception("Missing option value: " . '--' . $long, 1);
-                else
-                    throw new Exception("Missing option value: " . '-' . $short, 1);
-            }
-        }
-
-        # check if all required arguments have been provided
-        foreach ($this->arguments as $k => $v) {
-            extract($v);
-            if ($argument == self::ARGUMENT_REQUIRED && $value === '') {
-                throw new Exception("Missing argument: " . $name, 1);
-            }
-        }
-
-        return call_user_func($this->handler, $this);
     }
 
     /**
-     * If no handler is provided while constructing, this function is called.
-     * This must be overridden in an extended class
+     * Run the command
+     *
+     * @param null|array $args Arguments are retrieved from env, if not provided
+     */
+    public function run(?array $args = null)
+    {
+        Debug::enable(1);
+
+        if (method_exists(parent::class, 'init'))
+            parent::init();
+
+        $this->init();
+
+        # parse the passed options/arguments to run or the arguments passed
+        # to main application
+        if (!$args) {
+            if (PHP_SAPI === "cli") {
+                $args = $_SERVER['argv'];
+            } else {
+                $args = $_POST['args'] ?? $_GET['args'] ?? [];
+                if (is_string($args)) {
+                    $args = explode(' ', $args);
+                }
+                
+                array_unshift($args, $this->command['name']);
+            }
+        }
+
+        $this->parseArguments($args);
+
+        # verbosity
+        $dl = $this->getOption('verbose') ?? 0;
+
+        Debug::enable($dl ?? 0);
+        Debug::lock();
+
+        $result = null;
+
+        # help
+        if ($option = $this->getOption('help')) {
+            return $this->help($option);
+        } elseif ($this->getOption('version')) {
+            return $this->version();
+        } elseif (count($this->command['commands'])) {
+            if (!$this->command['command'])
+                return $this->main();
+
+            return $this->command['command']->run($this->command['command_args']);
+        } elseif (count($this->command['arguments'])) {
+            # check if all required arguments have been provided
+            foreach ($this->command['arguments'] as $k => $arg) {
+                if (
+                    ($arg['type'] == self::ARGUMENT_REQUIRED) 
+                    && ($arg['value'] === null)
+                )
+                {
+                    throw new Exception("Missing argument: " . $arg['name'], 1);
+                }
+            }
+        }
+
+        if (method_exists(parent::class, 'configure'))
+            parent::configure();
+
+        $this->configure();
+
+        # call the command handler if it exists or the main function
+        if ($this->command['handler'])
+            $result = $this->command['handler']($this);
+        else
+            $result = $this->main();
+
+        return (
+            is_int($result)
+            ? $result
+            : (
+                is_null($result)
+                ? self::SUCCESS
+                : self::FAILED
+            )
+        );
+    }
+
+    /** 
+     * Main function of the command
+     * Note: This function must be defined in the extended class, this function
+     *       gets executed finally, so all of the logic related to options or
+     *       associated arguments is defined here.
      */
     public function main()
     {
-        $this->help();
+        # return the help by default
+        return $this->help();
     }
 }

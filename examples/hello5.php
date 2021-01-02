@@ -1,4 +1,3 @@
-#!/usr/bin/env php
 <?php
 
 require dirname(__DIR__) . "/vendor/autoload.php";
@@ -6,14 +5,14 @@ require dirname(__DIR__) . "/vendor/autoload.php";
 use IrfanTOOR\Command;
 
 $cmd = new Command([
-    'name' => 'hello5',
-    'description' => 'test the required option',
+    'name' => 'hello',
+    'description' => 'test the required argument',
     'handler' => function($cmd){
-        $req = $cmd->getOption('required');
-        $cmd->writeln("OK the required option is: " . $req, 'green');
+        $required = $cmd->getArgument('required');
+        $cmd->writeln("OK the required argument is: " . $required, 'green');
     },
     'version' => '2.0',
 ]);
 
-$cmd->addOption('r', 'required', 'its an option which is required', $cmd::ARGUMENT_REQUIRED);
+$cmd->addArgument('required', 'its a required argument', $cmd::ARGUMENT_REQUIRED);
 $cmd->run();

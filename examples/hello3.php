@@ -1,4 +1,3 @@
-#!/usr/bin/env php
 <?php
 
 require dirname(__DIR__) . "/vendor/autoload.php";
@@ -10,13 +9,16 @@ class HelloCommand extends Command
     function __construct()
     {
         parent::__construct([
-            'name' => 'hello3.php', 
+            'name' => 'hello', 
             'description' => 'hello world! of command', 
             'version' => '1.3'
         ]);
+    }
 
-        $this->addOption('g', 'greeting', 'Sets the greeting', self::ARGUMENT_OPTIONAL, 'Hello');
-        $this->addArgument('name', 'Name to be greeted', self::ARGUMENT_OPTIONAL, 'World');
+    function init()
+    {
+        $this->addOption('g|greeting', 'Sets the greeting', 'Hello');
+        $this->addArgument('name', 'Name to be greeted', self::ARGUMENT_OPTIONAL, 'World');        
     }
 
     function main()

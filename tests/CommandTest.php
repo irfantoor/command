@@ -1,76 +1,45 @@
 <?php
 
-use IrfanTOOR\Console;
-use IrfanTOOR\Command;
-use IrfanTOOR\Test;
-
-class MockCommand extends Command
-{
-    function __construct()
-    {
-        parent::__construct([
-            'name' => '@@NAME', 
-            'description' => '@@DESCRIPTION'
-        ]);
-    }
-
-    function main()
-    {
-        echo '@@MAIN';
-    }
-}
+use IrfanTOOR\{
+    Command,
+    Debug,
+    Terminal,
+    Test,
+};
+use Tests\MockCommand;
 
 class CommandTest extends Test
 {
-    function testCommandInstance()
+    public function testCommandInstance()
     {
-        $c = new Command([
-            'name' => 'test', 
-            'description' => 'its a test'
-        ]);
+        $cmd = new Command();
+        $this->assertInstanceOf(Command::class, $cmd);
+        $this->assertInstanceOf(Terminal::class, $cmd);
 
-        $this->assertInstanceOf(IrfanTOOR\Command::class, $c);
+        $cmd = new MockCommand();
+        $this->assertInstanceOf(Command::class, $cmd);
     }
 
-    function testConstruct()
+    public function testConstruct()
     {
         # no handler
-        $c = new Command([
-            'name' => '@@NAME',
-            'description' => '@@DESCRIPTION'
-        ]);
+        $cmd = new Command();
+        $cmd->ob_start();
+        $cmd->help();
+        $help = $cmd->ob_get_clean();
 
-        ob_start();
-        $c->help();
-        $help = ob_get_clean();
-
-        ob_start();
-        $c->run();
-        $main = ob_get_clean();
-
+        $cmd->ob_start();
+        $cmd->main();
+        $main = $cmd->ob_get_clean();
         $this->assertEquals($help, $main);
 
-        # handler
-        $c = new Command([
-            'name' => '@@NAME', 
-            'description' => '@@DESCRIPTION', 
-            'handler' => function() {
-                echo 'Hello World!';
-            }
-        ]);
-
-        ob_start();
-        $c->run();
-        $main = ob_get_clean();
-
-        $this->assertEquals('Hello World!', $main);
+        $cmd->ob_start();
+        $cmd->run();
+        $run = $cmd->ob_get_clean();
+        $this->assertEquals($help, $run);
 
         # without version
-        $c = new Command([
-            'name' => '@@NAME',
-            'description' => '@@DESCRIPTION'
-        ]);
-
+        $c = new MockCommand();
         $v = $c->getVersion();
 
         $this->assertNotEmpty($v);
@@ -78,10 +47,9 @@ class CommandTest extends Test
         $this->assertNotEquals('VERSION', $v);
         $this->assertNotInt(strpos($v, 'VERSION'));
 
+
         # with version
-        $c = new Command([
-            'name' => '@@NAME',
-            'description' => '@@DESCRIPTION',
+        $c = new MockCommand([
             'version' => '@@VERSION',
         ]);
 
@@ -94,50 +62,70 @@ class CommandTest extends Test
         $this->assertEquals('@@VERSION', $v);
 
         # throw exception
-        $c = new Command([
+        $c = new MockCommand([
             'name' => '@@NAME',
             'description' => '@@DESCRIPTION'
         ]);
+
+        $_SERVER['argv'] = ['cmd', '--go'];
+
         $this->assertException(function() use($c){
-            $c->run(['--go']);
+            $c->run();
         });
 
-        # throw no exception
-        $c = new Command([
-            'name' => '@@NAME',
-            'description' => '@@DESCRIPTION'
-        ]);
-        $this->assertException(function() use($c){
-            $c->run(['--go']);
-        });
+        // $level = Debug::getLevel();
+
+        $options = [
+            '-h', '--help',
+            '-V', '--version',
+            '--ansi',
+            '--no-ansi',
+            '-v', '--verbose'
+        ];
+
+        foreach ($options as $option)
+        {
+            # must not throw an exception
+            $c = new MockCommand();
+            $c->ob_start();
+
+            $_SERVER['argv'] = ['cmd', $option];
+
+            $this->assertNotException(function() use($c){
+                $c->run();
+            });
+
+            $c->ob_get_clean();
+        }
+
+        // Debug::enable($level);
     }
 
-    function test__Call()
+    public function testExecute()
     {
-        $c = new Console;
-        $cmd = new Command([
-            'name' => '@@NAME',
-            'description' => '@@DESCRIPTION'
-        ]);
+        $cmd = new MockCommand();
+        $result = $cmd->execute('echo "Hello World!"');
+
+        $this->assertZero($result['exit_code']);
+        $this->assertEquals('Hello World!' . "\n", $result['output']);
+
+        $result = $cmd->execute('itsNotAValidCommad');
+        $this->assertEquals(127, $result['exit_code']);
+        $this->assertNotEquals('', $result['output']);
 
         ob_start();
-        $c->writeln('Hello World!', ['green']);
-        $out1 = ob_get_clean();
+        System('date');
+        $date = ob_get_clean();
 
-        ob_start();
-        $cmd->writeln('Hello World!', ['green']);
-        $out2 = ob_get_clean();
-
-        $this->assertString($out1);
-        $this->assertNotEquals('Hello World!', $out1);
-        $this->assertEquals($out1, $out2);
+        $result = $cmd->execute('date');
+        $this->assertZero($result['exit_code']);
+        $this->assertEquals($date, $result['output']);
     }
+
 
     function testCommandHelp(): void
     {
-        $cmd = new Command([
-            'name' => '@@NAME',
-            'description' => '@@DESCRIPTION',
+        $cmd = new MockCommand([
             'version' => '1.0'
         ]);
 
@@ -166,46 +154,19 @@ class CommandTest extends Test
 
     public function testCommandRun(): void
     {
-        $cmd = new Command([
-            'name' => '@@NAME',
-            'description' => '@@DESCRIPTION'
-        ]);
+        $cmd = new MockCommand();
 
         ob_start();
         $cmd->help();
-        $help_output = ob_get_clean();
+        $help = ob_get_clean();
 
         ob_start();
         $cmd->run();
-        $run_output = ob_get_clean();
+        $run = ob_get_clean();
 
-        $this->assertEquals($help_output, $run_output);
+        $this->assertEquals($help, $run);
 
-        $cmd = new MockCommand();
-        ob_start();
-        $cmd->run();
-        $run_output = ob_get_clean();
-
-        $this->assertEquals('@@MAIN', $run_output);
-    }
-
-    function testSystem(): void
-    {
-        $cmd = new MockCommand();
-        $result = $cmd->system('echo "Hello World!"');
-
-        $this->assertZero($result['exit_code']);
-        $this->assertEquals('Hello World!' . "\n", $result['output']);
-
-        $result = $cmd->system('itsNotAValidCommad');
-        $this->assertEquals(127, $result['exit_code']);
-
-        ob_start();
-        System('date');
-        $date = ob_get_clean();
-
-        $result = $cmd->system('date');
-        $this->assertZero($result['exit_code']);
-        $this->assertEquals($date, $result['output']);
+        # todo -- test init
+        # todo -- test config
     }
 }

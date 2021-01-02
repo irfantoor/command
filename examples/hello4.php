@@ -1,23 +1,26 @@
-#!/usr/bin/env php
 <?php
 
 require dirname(__DIR__) . "/vendor/autoload.php";
 
 use IrfanTOOR\Command;
+use IrfanTOOR\Debug;
+Debug::enable(1);
 
-# from hello3.php
 class HelloCommand extends Command
 {
     function __construct()
     {
         parent::__construct([
             'name' => 'hello', 
-            'description' => 'hello world! of command', 
-            'version' => '1.3'
+            'description' => 'hello world! of command',
+            'version' => '1.3',
         ]);
+    }
 
-        $this->addOption('g', 'greeting', 'Sets the greeting', self::ARGUMENT_OPTIONAL, 'Hello');
-        $this->addArgument('name', 'Name to be greeted', self::ARGUMENT_REQUIRED);
+    function init()
+    {
+        $this->addOption('g|greeting', 'Sets the greeting', 'Hello');
+        $this->addArgument('name', 'Name to be greeted', self::ARGUMENT_OPTIONAL, 'World!');
     }
 
     function main()
@@ -35,30 +38,29 @@ class CalCommand extends Command
     {
         parent::__construct([
             'name' => 'cal', 
-            'description' => 'prints a calendar',
-            'version' => '1.0'
+            'description' => 'prints a calendar', 
+            'version' => '0.1'
         ]);
     }
 
     function main()
     {
-        $result = $this->system('cal');
-        if ($result['exit_code'] === 0)
-            $this->write($result['output'], 'cyan');
-        else
-            $this->write($result['output'], 'red');
+        ob_start();
+        system("cal");
+        $output = ob_get_clean();
+        $this->writeln($output, "yellow");
     }
 }
 
 $cmd = new Command([
-    'name' => 'hello4.php',
-    'description' => 'Its a composite command, i.e. it contains commmands',
+    'name' => 'hello4',
+    'description' => "Composit command",
+    'version' => '1.4',
     'handler' => function($cmd) {
-        $cmd->help();
-    },
-    'version' => '1.4'
+    }
 ]);
 
-$cmd->addCommand(new HelloCommand);
-$cmd->addCommand(new CalCommand);
+$cmd->addCommand(HelloCommand::class);
+$cmd->addCommand(CalCommand::class);
+
 $cmd->run();

@@ -1,23 +1,25 @@
 {
     "name": "irfantoor/command",
-    "description": "Code console commands",
+    "description": "Create shell commands, using php",
     "type": "library",
+    "keywords": ["shell", "command", "php"],
     "license": "MIT",
     "authors": [
         {
             "name": "Irfan TOOR",
-            "email": "email@irfantoor.com"
+            "email": "email@irfantoor.com",
+            "homepage": "https://irfantoor.com",
+            "role": "Developer"
         }
     ],
     "require": {
-        "irfantoor/console": "^0.6",
-        "irfantoor/debug": "^0.5"
+        "irfantoor/terminal": "~0.1",
+        "irfantoor/debug": "~0.6"
     },
     "autoload": {
         "psr-4": {
-            "IrfanTOOR\\": "src"
+            "IrfanTOOR\\": "src",
+            "Tests\\": "tests/classes/"
         }
-    },
-    "require-dev": {
     }
 }
