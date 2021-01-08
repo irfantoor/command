@@ -80,7 +80,7 @@ class CommandTest extends Test
             '-V', '--version',
             '--ansi',
             '--no-ansi',
-            '-v', '--verbose'
+            // '-v', '--verbose'
         ];
 
         foreach ($options as $option)
@@ -185,13 +185,30 @@ class CommandTest extends Test
             'cmd',
             '-' . $l
         ]);
-
         ob_get_clean();
 
         $options = $cmd->get('options');
         $version = $options['verbose']['value'] ?? 0;
 
         $this->assertEquals($version, strlen($l));
+
+        $files = get_included_files();
+        $found = false;
+
+        foreach ($files as $file) {
+            if (strpos($file, 'vendor/irfantoor/debug/src/Debug.php') !== false) {
+                $found = true;
+                break;
+            }
+        }
+
+        if ($version === 0) {
+            # the file Debug is not included for debug level 0
+            $this->assertFalse($found);
+        } else {
+            # the file Debug is included for debug level 1 (and onwards -- # todo)
+            $this->assertTrue($found);
+        }
     }
 
         # todo -- test init

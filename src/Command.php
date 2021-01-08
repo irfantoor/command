@@ -24,7 +24,7 @@ class Command extends Terminal
 {
     const NAME        = "Command";
     const DESCRIPTION = "Create shell commands, using php";
-    const VERSION     = "0.5.1";
+    const VERSION     = "0.5.2";
 
     # Return codes
     const SUCCESS = 0;
@@ -679,8 +679,8 @@ class Command extends Terminal
         # verbosity
         $dl = $this->getOption('verbose') ?? 0;
 
-        Debug::enable($dl ?? 0);
-        // Debug::lock();
+        if ($dl)
+            Debug::enable($dl);
 
         $result = null;
 
