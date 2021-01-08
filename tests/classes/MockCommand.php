@@ -21,4 +21,9 @@ class MockCommand extends Command
 
         $this->handler = $init['handler'] ?? null;
     }
+
+    public function get($var)
+    {
+        return $this->command[$var] ?? null;
+    }
 }

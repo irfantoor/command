@@ -24,7 +24,7 @@ class Command extends Terminal
 {
     const NAME        = "Command";
     const DESCRIPTION = "Create shell commands, using php";
-    const VERSION     = "0.5";
+    const VERSION     = "0.5.1";
 
     # Return codes
     const SUCCESS = 0;
@@ -654,8 +654,6 @@ class Command extends Terminal
      */
     public function run(?array $args = null)
     {
-        Debug::enable(1);
-
         if (method_exists(parent::class, 'init'))
             parent::init();
 
@@ -682,7 +680,7 @@ class Command extends Terminal
         $dl = $this->getOption('verbose') ?? 0;
 
         Debug::enable($dl ?? 0);
-        Debug::lock();
+        // Debug::lock();
 
         $result = null;
 

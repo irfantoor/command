@@ -13,8 +13,12 @@
         }
     ],
     "require": {
+        "php": ">= 7.3",
         "irfantoor/terminal": "~0.1",
         "irfantoor/debug": "~0.6"
+    },
+    "require-dev": {
+        "irfantoor/mini-loader": "^0.1.1"
     },
     "autoload": {
         "psr-4": {

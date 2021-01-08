@@ -165,8 +165,36 @@ class CommandTest extends Test
         $run = ob_get_clean();
 
         $this->assertEquals($help, $run);
+    }
+
+
+    public function getVerbosityLevels()
+    {
+        return ['', 'v', 'vv', 'vvv'];
+    }
+
+    /**
+     * l: $this->getVerbosityLevels()
+     */
+    public function testDebugVerbosityLevel($l)
+    {
+        $cmd = new MockCommand();
+
+        ob_start();
+        $cmd->run([
+            'cmd',
+            '-' . $l
+        ]);
+
+        ob_get_clean();
+
+        $options = $cmd->get('options');
+        $version = $options['verbose']['value'] ?? 0;
+
+        $this->assertEquals($version, strlen($l));
+    }
 
         # todo -- test init
         # todo -- test config
-    }
+        # todo -- argument parsing tests...
 }
