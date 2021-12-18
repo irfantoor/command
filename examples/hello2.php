@@ -4,9 +4,6 @@ require dirname(__DIR__) . "/vendor/autoload.php";
 
 use IrfanTOOR\Command;
 
-
-// $cmd = new Command('test', 'Its a test command');
-
 $cmd = new Command([
     'name' => 'hello', 
     'description' => 'hello world! of command', 

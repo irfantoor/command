@@ -1,13 +1,20 @@
-# IrfanTOOR\Command
+# Irfan's Command
 
 Simplest way to make your console commands.
 
-Note: Since the inclusion of irfantoor\terminal, your commands can be run through
-a browser as well.
+Note: Since the inclusion of Irfan's Terminal ( irfantoor/terminal ), your commands can be
+run through a browser as well.
+
+## Installation
+
+```sh
+$ composer require irfantoor/command
+```
 
 Examples:
 
-A simple command to say "Hello World!"" on command line. The default options of verbosity, version and help are defained by default. So you can do like:
+A simple command to say "Hello World!"" on command line. The default options of verbosity,
+version and help are defained by default. So you can do like:
 
 ```sh
 $ php hello1.php --help
@@ -15,7 +22,11 @@ $ php hello1.php -V
 $ php hello1.php -v
 ```
 
-Note: If version is not provided while intialising, file named 'version' is searched in the parent directory where the /src directory is present, if found then its contents are used as version, or a default value of '0.1' is used. This is helpful if the version file is part of versioning system and is updated to the last version tag (ref: examples/hello6.php)
+Note: If version is not provided while intialising, file named 'version' is searched in
+the parent directory where the /src directory is present, if found then its contents are
+used as version, or a default value of '0.1' is used. This is helpful if the version file
+is part of versioning system and is updated to the last version tag
+(see : examples/hello6.php)
 
 ref: examples/hello1.php
 ```php
@@ -24,13 +35,16 @@ require dirname(__DIR__) . "/vendor/autoload.php";
 
 use IrfanTOOR\Command;
 
-$cmd = new Command([
-    'name' => 'hello1.php', 
-    'description' => 'hello world! of command', 
-    'handler' => function($cmd){
-        $cmd->writeln("Hello World!", "yellow");
-    },
-    'version' => '1.1'
+$cmd = new Command(
+    [
+        'name' => 'hello1.php', 
+        'description' => 'hello world! of command', 
+        'handler' => function($cmd){
+            $name = $cmd->read('your name: ', 'green');
+            $cmd->writeln("Hello " . ucwords($name) . '!', "yellow");
+        },
+        'version' => '1.1'
+    ]
 );
 
 $cmd->run();
@@ -111,8 +125,8 @@ $cmd = new Command([
     }
 ]);
 
-$cmd->addCommand(HelloCommand::class);
-$cmd->addCommand(CalCommand::class);
+$cmd->addCommand('hello', HelloCommand::class);
+$cmd->addCommand('cal', CalCommand::class);
 
 $cmd->run();
 ```
@@ -123,7 +137,8 @@ command -v  # verbosity = 1
 command -vv # verbosuty = 2
 
 If the default value of an option is a string, whenever such option is
-used it must always be followed by its value. For example hello4.php with a greeting "Hi" can be used in this way:
+used it must always be followed by its value. For example hello4.php with a greeting "Hi"
+can be used in this way:
 
 ```sh
 php hello4.php hello -g Hi irfan

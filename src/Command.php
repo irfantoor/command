@@ -24,7 +24,7 @@ class Command extends Terminal
 {
     const NAME        = "Command";
     const DESCRIPTION = "Create shell commands, using php";
-    const VERSION     = "0.5.2";
+    const VERSION     = "0.6";
 
     # Return codes
     const SUCCESS = 0;
@@ -58,13 +58,10 @@ class Command extends Terminal
         "handler"     => null,
     ];
 
-    protected $ansi    = false;
-    protected $noansi  = false;
-
     /**
      * Command constructor
      *
-     * @param string 
+     * @param array
      */
     public function __construct(array $init = [])
     {
@@ -88,36 +85,11 @@ class Command extends Terminal
     }
 
     /**
-     * Write text to output
-     *
-     * @param string $text       Text to be printed
-     * @param string $styles     Comma separated styles in the string
-     * @param bool   $force_ansi Force the output to be printed use ANSI colors
-     */
-    public function write(
-        string $text,
-        ?string $styles = null,
-        bool $force_ansi = false
-    ) {
-        if ($force_ansi) {
-            parent::write($text, $styles, true);
-        } else {
-            if ($this->ansi) {
-                parent::write($text, $styles, true);
-            } elseif($this->noansi) {
-                parent::write($text);
-            } else {
-                parent::write($text, $styles);
-            }
-        }
-    }
-
-    /**
      * Sets the command name
      *
      * @param string $name Name of the command
      */
-    # 
+    #
     # @param string $name
     public function setName(string $name)
     {
@@ -137,7 +109,7 @@ class Command extends Terminal
     /**
      * Sets the command description
      *
-     * @param string $description 
+     * @param string $description
      */
     public function setDescription(string $description)
     {
@@ -214,8 +186,8 @@ class Command extends Terminal
      * @param array  $def  ['description' => ..., 'type' => ...]
      */
     public function addArgument(
-        string $name, 
-        string $description, 
+        string $name,
+        string $description,
         int $type = self::ARGUMENT_OPTIONAL,
         $default = null
         )
@@ -238,12 +210,9 @@ class Command extends Terminal
      * @param string $name
      * @param string $class
      */
-    public function addCommand(string $class)
+    public function addCommand(string $name, string $class)
     {
-        $command = new $class();
-        $name = $command->getName();    
-        $this->command['commands'][$name] = $command;
-        
+        $this->command['commands'][$name] = $class;
     }
 
     /**
@@ -291,6 +260,11 @@ class Command extends Terminal
         return $this->command['arguments'][$name]['value'] ?? $this->command['arguments'][$name]['default'];
     }
 
+    public function getCommand(string $cmd)
+    {
+        return $this->command['commands'][$cmd] ?? null;
+    }
+
     /**
      * Retrieve the name of this command
      *
@@ -301,6 +275,21 @@ class Command extends Terminal
         return $this->command['name'];
     }
 
+    public function normalizeVersion($version)
+    {
+        $v = explode('-', (string) $version);
+
+        switch(count(explode('.', $v[0]))) {
+            case 1:
+                $v[0] .= '.0';
+            case 2:
+                $v[0] .= '.0';
+            default:
+        }
+
+        return $v[0] . (isset($v[1]) ? '-' . $v[1] : '');
+    }
+
     /**
      * Retrieve the command version
      *
@@ -308,7 +297,7 @@ class Command extends Terminal
      */
     public function getVersion(): string
     {
-        return $this->command['version'];
+        return $this->normalizeVersion($this->command['version']);
     }
 
     /**
@@ -322,7 +311,7 @@ class Command extends Terminal
     }
 
     /**
-     * Prints the name of the command and its version 
+     * Prints the name of the command and its version
      */
     public function title()
     {
@@ -330,7 +319,7 @@ class Command extends Terminal
     }
 
     /**
-     * Prints the help, called when an option -h or --help is provided 
+     * Prints the help, called when an option -h or --help is provided
      */
     public function help()
     {
@@ -442,7 +431,9 @@ class Command extends Terminal
             }
 
             $this->writeln();
-        } elseif ($this->command['commands']) {
+        }
+
+        if (count($this->command['commands'])) {
             $this->writeln("commands:", 'info');
             $max = 0;
 
@@ -452,6 +443,7 @@ class Command extends Terminal
 
             foreach ($this->command['commands'] as $k => $v) {
                 $this->write("  " . $k . str_repeat(' ', $max + 4 - strlen($k)), 'green');
+                $v = new $v();
                 $this->writeln($v->getDescription());
             }
 
@@ -464,7 +456,7 @@ class Command extends Terminal
     }
 
     /**
-     * Prints the version information 
+     * Prints the version information
      */
     public function version()
     {
@@ -479,15 +471,19 @@ class Command extends Terminal
      * @param string $cmd System command to be executed
      * @return array Result is like: ["output" => "...", "exit_code" => 0]
      */
-    public function execute(string $cmd): array
+    public function execute(string $cmd, $show_output = false): array
     {
         $output    = "";
         $exit_code = 0;
 
         if ($cmd !== "") {
-            ob_start();
-            system($cmd . " 2>/dev/stdout", $exit_code);
-            $output = ob_get_clean();
+            if ($show_output) {
+                system($cmd, $exit_code);
+            } else {
+                ob_start();
+                system($cmd . " 2>/dev/stdout", $exit_code);
+                $output = ob_get_clean();
+            }
         }
 
         return compact(['output', 'exit_code']);
@@ -536,12 +532,23 @@ class Command extends Terminal
             switch ($token) {
                 case 'command':
                     if (array_key_exists($arg, $this->command['commands'])) {
-                        $this->command['command'] = $this->command['commands'][$arg];
+                        $this->command['command'] = new $this->command['commands'][$arg];
                         $this->command['command_args'] = $args;
                     } else {
-                        throw new Exception("Unknown command: " . $arg, 1);
+                        $list = array_keys($this->command['commands']);
+                        $matched = [];
+                        foreach ($list as $cmd) {
+                            if (strpos($cmd, $arg) === 0)
+                                $matched[] = $cmd;
+                        }
+                        if (count($matched) === 1) {
+                            $cmd = $matched[0];
+                            $this->command['command'] = $this->command['commands'][$cmd];
+                            $this->command['command_args'] = $args;
+                        } else {
+                            throw new Exception("Unknown command: " . $arg, 1);
+                        }
                     }
-
                     $stop = true;
                     break;
 
@@ -621,7 +628,7 @@ class Command extends Terminal
 
                     if ($arg_value != null) {
                         $this->command['options'][$k]['value'] = $arg_value;
-                    } else {                                                        
+                    } else {
                         if (is_null($this->command['options'][$k]['value'])) {
                             $this->command['options'][$k]['value'] = 1;
                         } elseif(is_int($this->command['options'][$k]['value'])) {
@@ -669,7 +676,7 @@ class Command extends Terminal
                 if (is_string($args)) {
                     $args = explode(' ', $args);
                 }
-                
+
                 array_unshift($args, $this->command['name']);
             }
         }
@@ -677,10 +684,16 @@ class Command extends Terminal
         $this->parseArguments($args);
 
         # verbosity
-        $dl = $this->getOption('verbose') ?? 0;
+        $dl = $this->getOption('verbose') ?? 1;
 
         if ($dl)
             Debug::enable($dl);
+
+        if ($this->getOption('ansi'))
+            $this->ansi(true);
+
+        elseif ($this->getOption('no-ansi'))
+            $this->ansi(false);
 
         $result = null;
 
@@ -693,12 +706,13 @@ class Command extends Terminal
             if (!$this->command['command'])
                 return $this->main();
 
-            return $this->command['command']->run($this->command['command_args']);
+            $cmd = new $this->command['command'];
+            return $cmd->run($this->command['command_args']);
         } elseif (count($this->command['arguments'])) {
             # check if all required arguments have been provided
             foreach ($this->command['arguments'] as $k => $arg) {
                 if (
-                    ($arg['type'] == self::ARGUMENT_REQUIRED) 
+                    ($arg['type'] == self::ARGUMENT_REQUIRED)
                     && ($arg['value'] === null)
                 )
                 {
@@ -729,7 +743,7 @@ class Command extends Terminal
         );
     }
 
-    /** 
+    /**
      * Main function of the command
      * Note: This function must be defined in the extended class, this function
      *       gets executed finally, so all of the logic related to options or

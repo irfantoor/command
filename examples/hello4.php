@@ -11,7 +11,7 @@ class HelloCommand extends Command
     function __construct()
     {
         parent::__construct([
-            'name' => 'hello', 
+            'name' => 'hello',
             'description' => 'hello world! of command',
             'version' => '1.3',
         ]);
@@ -37,8 +37,8 @@ class CalCommand extends Command
     function __construct()
     {
         parent::__construct([
-            'name' => 'cal', 
-            'description' => 'prints a calendar', 
+            'name' => 'cal',
+            'description' => 'prints a calendar',
             'version' => '0.1'
         ]);
     }
@@ -60,7 +60,7 @@ $cmd = new Command([
     }
 ]);
 
-$cmd->addCommand(HelloCommand::class);
-$cmd->addCommand(CalCommand::class);
+$cmd->addCommand('hello', HelloCommand::class);
+$cmd->addCommand('calc', CalCommand::class);
 
 $cmd->run();

@@ -6,11 +6,11 @@ use IrfanTOOR\{
     Terminal,
     Test,
 };
-use Tests\MockCommand;
+use Tests\{ MockCommand, HelloCommand, WorldCommand };
 
 class CommandTest extends Test
 {
-    public function testCommandInstance()
+    public function test_instance()
     {
         $cmd = new Command();
         $this->assertInstanceOf(Command::class, $cmd);
@@ -20,7 +20,7 @@ class CommandTest extends Test
         $this->assertInstanceOf(Command::class, $cmd);
     }
 
-    public function testConstruct()
+    public function test___construct()
     {
         # no handler
         $cmd = new Command();
@@ -59,7 +59,7 @@ class CommandTest extends Test
         $this->assertNotEmpty($v);
         $this->assertString($v);
         $this->assertNotEquals('VERSION', $v);
-        $this->assertEquals('@@VERSION', $v);
+        $this->assertEquals('@@VERSION.0.0', $v);
 
         # throw exception
         $c = new MockCommand([
@@ -101,7 +101,7 @@ class CommandTest extends Test
         // Debug::enable($level);
     }
 
-    public function testExecute()
+    public function test_execute()
     {
         $cmd = new MockCommand();
         $result = $cmd->execute('echo "Hello World!"');
@@ -123,7 +123,7 @@ class CommandTest extends Test
     }
 
 
-    function testCommandHelp(): void
+    function test_help(): void
     {
         $cmd = new MockCommand([
             'version' => '1.0'
@@ -152,63 +152,79 @@ class CommandTest extends Test
         $this->assertInt(strpos($help, 'Displays version'));
     }
 
-    public function testCommandRun(): void
+    public function test_run(): void
     {
-        $cmd = new MockCommand();
+        $cmd = new Command();
+        ob_start();
+        $cmd->main();
+        $run = ob_get_clean();
 
+        $cmd = new Command();
         ob_start();
         $cmd->help();
         $help = ob_get_clean();
 
-        ob_start();
-        $cmd->run();
-        $run = ob_get_clean();
-
-        $this->assertEquals($help, $run);
+        $this->assertEquals($run, $help);
     }
 
 
     public function getVerbosityLevels()
     {
-        return ['', 'v', 'vv', 'vvv'];
+        return ['', 'v', 'vv', 'vvv', 'vvvv'];
     }
 
     /**
      * l: $this->getVerbosityLevels()
      */
-    public function testDebugVerbosityLevel($l)
+    public function test_Verbosity_level($l)
     {
         $cmd = new MockCommand();
 
         ob_start();
-        $cmd->run([
-            'cmd',
-            '-' . $l
-        ]);
+
+        if ($l === '')
+            $cmd->run(['cmd']);
+        else
+            $cmd->run(['cmd', '-' . $l]);
+
         ob_get_clean();
-
         $options = $cmd->get('options');
-        $version = $options['verbose']['value'] ?? 0;
+        $verbose = $options['verbose']['value'] ?? 0;
+        $expected = strlen($l);
 
-        $this->assertEquals($version, strlen($l));
+        $this->assertEquals($expected, $verbose);
+    }
 
-        $files = get_included_files();
-        $found = false;
+    function test_addCommand()
+    {
+        $cmd = new MockCommand();
 
-        foreach ($files as $file) {
-            if (strpos($file, 'vendor/irfantoor/debug/src/Debug.php') !== false) {
-                $found = true;
-                break;
-            }
-        }
+        $cmd->addCommand('hello', HelloCommand::class);
+        $cmd->addCommand('world', WorldCommand::class);
 
-        if ($version === 0) {
-            # the file Debug is not included for debug level 0
-            $this->assertFalse($found);
-        } else {
-            # the file Debug is included for debug level 1 (and onwards -- # todo)
-            $this->assertTrue($found);
-        }
+        ob_start();
+        $cmd->run(['cmd', 'hello']);
+        $this->assertEquals('Hello', ob_get_clean());
+
+        ob_start();
+        $cmd->run(['cmd', 'world']);
+        $this->assertEquals('World!', ob_get_clean());
+
+        $hello = new HelloCommand();
+        ob_start();
+        $cmd->run(['hello', 'world']);
+        $this->assertEquals('World!', ob_get_clean());
+    }
+
+    /**
+     * throws: Exception::class
+     * message: Unknown command: world
+     */
+    function test_Unknown_command()
+    {
+        $cmd = new MockCommand();
+        $cmd->addCommand('hello', HelloCommand::class);
+        $cmd->run(['cmd', 'world']);
     }
 
         # todo -- test init

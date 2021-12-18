@@ -1,6 +1,6 @@
 {
     "name": "irfantoor/command",
-    "description": "Create shell commands, using php",
+    "description": "Irfan's Command : Shell commands, using php",
     "type": "library",
     "keywords": ["shell", "command", "php"],
     "license": "MIT",
@@ -18,7 +18,7 @@
         "irfantoor/debug": "~0.6"
     },
     "require-dev": {
-        "irfantoor/mini-loader": "^0.1.1"
+        "irfantoor/mini-loader": "~0.1"
     },
     "autoload": {
         "psr-4": {
